@@ -57,6 +57,40 @@ const VERSION_GROUP_TO_GEN = {
 'scarlet-violet': 9
 };
 
+const POKEDEX_IDS = {
+  'national': 1,
+  'kanto': 2,
+  'original-johto': 3,
+  'hoenn': 4,
+  'original-sinnoh': 5,
+  'extended-sinnoh': 6,
+  'updated-johto': 7,
+  'original-unova': 8,
+  'updated-unova': 9,
+  'kalos-central': 12,
+  'kalos-coastal': 13,
+  'kalos-mountain': 14,
+  'updated-hoenn': 15,
+  'original-alola': 16,
+  'original-melemele': 17,
+  'original-akala': 18,
+  'original-ulaula': 19,
+  'original-poni': 20,
+  'updated-alola': 21,
+  'updated-melemele': 22,
+  'updated-akala': 23,
+  'updated-ulaula': 24,
+  'updated-poni': 25,
+  'letsgo-kanto': 26,
+  'galar': 27,
+  'isle-of-armor': 28,
+  'crown-tundra': 29,
+  'hisui': 30,
+  'paldea': 31,
+  'kitakami': 32,
+  'blueberry': 33
+};
+
 const moveDetailsCache = {};
 let currentPokemonMoves = {};
 
@@ -70,10 +104,70 @@ async function init() {
     setupDamageClasses();
 }
 
+async function loadPokedex(id, name, event) {
+  // Handle highlighting
+  if (event) {
+    event.preventDefault();
+    document.querySelectorAll('.sub-nav-item').forEach(el => el.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+  }
+
+  // Ensure we are on the pokedex page
+  if (currentPage !== 'pokedex') {
+    switchPage('pokedex');
+  }
+  
+  const grid = document.getElementById('grid');
+  const subtitle = document.querySelector('.subtitle');
+  
+  grid.innerHTML = `<div class="loading">Loading ${name}...</div>`;
+  subtitle.textContent = `Exploring ${name}`;
+  
+  try {
+    // Special case for "All Pokémon"
+    if (id === 'all') {
+      if (allPokemon.length === 0) {
+         allPokemon = await fetch(`${API}/pokemon?limit=1025`).then(r => r.json()).then(d => d.results.map((p, i) => ({ id: i + 1, name: p.name })));
+      }
+      pokemon = [...allPokemon];
+    } else {
+      const data = await fetch(`${API}/pokedex/${id}`).then(r => r.json());
+      pokemon = data.pokemon_entries.map(e => {
+        const urlParts = e.pokemon_species.url.split('/');
+        const speciesId = parseInt(urlParts[urlParts.length - 2]);
+        return {
+          id: speciesId,
+          dexId: e.entry_number,
+          name: e.pokemon_species.name
+        };
+      });
+    }
+    
+    render();
+  } catch (e) {
+    console.error(e);
+    grid.innerHTML = '<div class="empty">Error loading Pokédex</div>';
+  }
+}
+
 function setupDamageClasses() {
     document.getElementById('categoryButtons').innerHTML = DAMAGE_CLASSES.map(c => 
         `<button class="type-btn ${c === 'all' ? 'active' : ''}" onclick="setDamageClassFilter('${c}')">${c.toUpperCase()}</button>`
     ).join('');
+}
+
+function togglePokedexMenu(event) {
+  event.preventDefault();
+  const menu = document.getElementById('pokedexSubMenu');
+  const item = event.currentTarget;
+  
+  if (menu.style.display === 'none') {
+    menu.style.display = 'block';
+    item.classList.add('expanded');
+  } else {
+    menu.style.display = 'none';
+    item.classList.remove('expanded');
+  }
 }
 
 let movesPage = 1;
@@ -421,10 +515,10 @@ if (currentPage === 'pokedex') {
     
     document.getElementById('empty').style.display = 'none';
     grid.innerHTML = filtered.map(p => `
-    <div class="card" onclick="detail(${p.id})">
+    <div class="card" onclick="window.location.href='pokemon.html?id=${p.id}'">
         <div class="card-header">
         <div class="card-name">${p.name.charAt(0).toUpperCase() + p.name.slice(1)}</div>
-        <div class="card-id">#${String(p.id).padStart(3, '0')}</div>
+        <div class="card-id">#${String(p.dexId || p.id).padStart(3, '0')}</div>
         </div>
         <div class="card-image">
         <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png" alt="${p.name}" onerror="this.style.display='none'">

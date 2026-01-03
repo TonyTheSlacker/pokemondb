@@ -18,7 +18,46 @@
       </div>
       <nav class="sidebar-nav">
         <div class="nav-section">
-          <a href="#" class="nav-item active" onclick="switchPage('pokedex'); return false;">Pokédex</a>
+          <div class="nav-group">
+            <a href="#" class="nav-item active" onclick="togglePokedexMenu(event)">Pokédex <span class="arrow">▼</span></a>
+            <div class="nav-sub-menu" id="pokedexSubMenu" style="display: none;">
+              <div class="sub-menu-group">
+                <div class="sub-menu-title">Pokédex with stats</div>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex('all', 'All Pokémon'); return false;">All Pokémon</a>
+              </div>
+              
+              <div class="sub-menu-group">
+                <div class="sub-menu-title">Native Pokédexes</div>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(1, 'National Dex'); return false;">National Dex</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex('paldea', 'Scarlet & Violet'); return false;">Scarlet & Violet</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(30, 'Legends: Arceus'); return false;">Legends: Arceus</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(5, 'Brilliant Diamond & Shining Pearl'); return false;">Brilliant Diamond & Shining Pearl</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(27, 'Sword & Shield'); return false;">Sword & Shield</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(26, 'Let\'s Go Pikachu & Eevee'); return false;">Let's Go Pikachu & Eevee</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(21, 'Ultra Sun & Ultra Moon'); return false;">Ultra Sun & Ultra Moon</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(16, 'Sun & Moon'); return false;">Sun & Moon</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(15, 'Omega Ruby & Alpha Sapphire'); return false;">Omega Ruby & Alpha Sapphire</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(12, 'X & Y'); return false;">X & Y</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(9, 'Black 2 & White 2'); return false;">Black 2 & White 2</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(8, 'Black & White'); return false;">Black & White</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(7, 'HeartGold & SoulSilver'); return false;">HeartGold & SoulSilver</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(6, 'Platinum'); return false;">Platinum</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(5, 'Diamond & Pearl'); return false;">Diamond & Pearl</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(2, 'FireRed & LeafGreen'); return false;">FireRed & LeafGreen</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(4, 'Ruby, Sapphire & Emerald'); return false;">Ruby, Sapphire & Emerald</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(3, 'Gold, Silver & Crystal'); return false;">Gold, Silver & Crystal</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(2, 'Red, Blue & Yellow'); return false;">Red, Blue & Yellow</a>
+              </div>
+
+              <div class="sub-menu-group">
+                <div class="sub-menu-title">Other Pokédexes</div>
+                <a href="#" class="sub-nav-item">Shinydex</a>
+                <a href="#" class="sub-nav-item">Competitive Pokédex</a>
+                <a href="#" class="sub-nav-item">Size Pokédex</a>
+                <a href="#" class="sub-nav-item">Pokémon GO</a>
+              </div>
+            </div>
+          </div>
           <a href="#" class="nav-item" onclick="switchPage('moves'); return false;">Moves</a>
           <a href="#" class="nav-item" onclick="switchPage('type-chart'); return false;">Type chart</a>
           <a href="#" class="nav-item">Abilities</a>
