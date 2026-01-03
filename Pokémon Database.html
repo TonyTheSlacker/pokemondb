@@ -5,26 +5,64 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pokémon Database</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="moves.css">
+  <link rel="stylesheet" href="typechart.css">
 </head>
 <body>
-  <div class="container">
-    <header>
-      <h1>Pokémon Database</h1>
-      <p class="subtitle">Search and explore all 1,025 Pokémon</p>
-    </header>
-    
-    <div class="controls">
-      <div class="search-box">
-        <input type="text" id="search" placeholder="Search by name or ID...">
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo-icon"></div>
+        <span>Pokémon Data</span>
       </div>
-      <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-        <span class="filter-label">Filter by type:</span>
-        <div class="type-buttons" id="typeButtons"></div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <a href="#" class="nav-item active" onclick="switchPage('pokedex'); return false;">Pokédex</a>
+          <a href="#" class="nav-item" onclick="switchPage('moves'); return false;">Moves</a>
+          <a href="#" class="nav-item" onclick="switchPage('type-chart'); return false;">Type chart</a>
+          <a href="#" class="nav-item">Abilities</a>
+          <a href="#" class="nav-item">Items</a>
+          <a href="#" class="nav-item">Evolution chains</a>
+          <a href="#" class="nav-item">Pokémon locations</a>
+          <a href="#" class="nav-item">Sprite gallery</a>
+        </div>
+        
+        <div class="nav-label">QUICK LINKS</div>
+        <div class="nav-section">
+          <a href="#" class="nav-item">National Pokédex</a>
+          <a href="#" class="nav-item">Pokémon list with stats</a>
+          <a href="#" class="nav-item">Legends: Arceus Pokédex</a>
+          <a href="#" class="nav-item">Scarlet & Violet Pokédex</a>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="main-content">
+      <div class="container">
+        <header>
+          <h1>Pokémon Database</h1>
+          <p class="subtitle">Search and explore all 1,025 Pokémon</p>
+        </header>
+        
+        <div class="controls">
+          <div class="search-box">
+            <input type="text" id="search" placeholder="Search by name or ID...">
+          </div>
+          <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <span class="filter-label">Filter by type:</span>
+            <div class="type-buttons" id="typeButtons"></div>
+          </div>
+          <div id="categoryFilter" style="display: none; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 12px; width: 100%;">
+            <span class="filter-label">Category:</span>
+            <div class="type-buttons" id="categoryButtons"></div>
+          </div>
+        </div>
+        
+        <div id="grid" class="grid"></div>
+        <div id="typeChart" class="type-chart-container" style="display: none;"></div>
+        <div id="empty" class="empty" style="display: none;">No Pokémon found</div>
       </div>
-    </div>
-    
-    <div id="grid" class="grid"></div>
-    <div id="empty" class="empty" style="display: none;">No Pokémon found</div>
+    </main>
   </div>
   
   <div id="modal" class="modal">
