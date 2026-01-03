@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pokémon Database</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Pokémon Database</h1>
+      <p class="subtitle">Search and explore all 1,025 Pokémon</p>
+    </header>
+    
+    <div class="controls">
+      <div class="search-box">
+        <input type="text" id="search" placeholder="Search by name or ID...">
+      </div>
+      <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+        <span class="filter-label">Filter by type:</span>
+        <div class="type-buttons" id="typeButtons"></div>
+      </div>
+    </div>
+    
+    <div id="grid" class="grid"></div>
+    <div id="empty" class="empty" style="display: none;">No Pokémon found</div>
+  </div>
+  
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modalTitle"></h2>
+        <button class="close-btn" onclick="closeModal()">×</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
