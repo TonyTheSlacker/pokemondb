@@ -76,63 +76,269 @@ function setupDamageClasses() {
     ).join('');
 }
 
+let movesPage = 1;
+const MOVES_PER_PAGE = 50;
+let currentMovesSort = { field: 'name', dir: 'asc' };
+
 async function switchPage(page) {
-currentPage = page;
-document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-event.target.classList.add('active');
+  currentPage = page;
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  event.target.classList.add('active');
 
-const grid = document.getElementById('grid');
-const searchInput = document.getElementById('search');
-const subtitle = document.querySelector('.subtitle');
-const categoryFilter = document.getElementById('categoryFilter');
-const typeChart = document.getElementById('typeChart');
-const empty = document.getElementById('empty');
-
-// Reset filters
-filter = 'all';
-damageClassFilter = 'all';
-document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
-// Set 'all' active for both type and category
-document.querySelectorAll('.type-btn').forEach(b => {
+  const grid = document.getElementById('grid');
+  const searchInput = document.getElementById('search');
+  const subtitle = document.querySelector('.subtitle');
+  const categoryFilter = document.getElementById('categoryFilter');
+  const typeChart = document.getElementById('typeChart');
+  const movesList = document.getElementById('movesList');
+  const empty = document.getElementById('empty');
+  
+  // Reset filters
+  filter = 'all';
+  damageClassFilter = 'all';
+  document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+  // Set 'all' active for both type and category
+  document.querySelectorAll('.type-btn').forEach(b => {
     if (b.textContent === 'ALL') b.classList.add('active');
-});
+  });
+  
+  // Default visibility
+  grid.style.display = 'grid';
+  typeChart.style.display = 'none';
+  if (movesList) movesList.style.display = 'none';
+  empty.style.display = 'none';
+  document.querySelector('.controls').style.display = 'flex';
 
-// Default visibility
-grid.style.display = 'grid';
-typeChart.style.display = 'none';
-empty.style.display = 'none';
-document.querySelector('.controls').style.display = 'flex';
-
-if (page === 'pokedex') {
+  if (page === 'pokedex') {
     subtitle.textContent = 'Search and explore all 1,025 Pokémon';
     searchInput.placeholder = 'Search by name or ID...';
     searchInput.value = '';
     categoryFilter.style.display = 'none';
     pokemon = [...allPokemon];
     render();
-} else if (page === 'moves') {
-    subtitle.textContent = 'Search and explore all moves';
-    searchInput.placeholder = 'Search moves...';
-    searchInput.value = '';
-    categoryFilter.style.display = 'flex';
+  } else if (page === 'moves') {
+    document.querySelector('.controls').style.display = 'none';
+    grid.style.display = 'none';
+    if (movesList) movesList.style.display = 'block';
     
     if (!allMoves.length) {
-    grid.innerHTML = '<div class="loading">Loading Moves...</div>';
-    const data = await fetch(`${API}/move?limit=1000`).then(r => r.json());
-    allMoves = data.results.map(m => ({
+      if (movesList) movesList.innerHTML = '<div class="loading">Loading Moves...</div>';
+      const data = await fetch(`${API}/move?limit=1000`).then(r => r.json());
+      allMoves = data.results.map(m => ({
         name: m.name,
-        id: parseInt(m.url.split('/').filter(Boolean).pop())
-    }));
+        id: parseInt(m.url.split('/').filter(Boolean).pop()),
+        url: m.url
+      }));
     }
     moves = [...allMoves];
-    render();
-} else if (page === 'type-chart') {
+    renderMovesPage();
+  } else if (page === 'type-chart') {
     subtitle.textContent = 'Type Effectiveness Chart';
     document.querySelector('.controls').style.display = 'none';
     grid.style.display = 'none';
     typeChart.style.display = 'block';
     renderTypeChart();
+  }
 }
+
+function renderMovesPage() {
+  const container = document.getElementById('movesList');
+  if (!container) return;
+  
+  // Initial render of structure if empty
+  if (!container.querySelector('.moves-header')) {
+    container.innerHTML = `
+      <div class="moves-header">
+        <div class="moves-title">Pokémon move list</div>
+        <div class="moves-desc">
+          This is a full list of every Pokémon move from all 9 generations of the game series. The power, accuracy and PP are listed along with any additional effects.
+          Click a move name to see even more detailed information.
+        </div>
+        <div class="moves-key">
+          <span>Category key:</span>
+          <span class="key-item"><span title="Physical" style="color:#ff4400;font-size:18px;line-height:1">●</span> Physical</span>
+          <span class="key-item"><span title="Special" style="color:#2266cc;font-size:18px;line-height:1">●</span> Special</span>
+          <span class="key-item"><span title="Status" style="color:#999;font-size:18px;line-height:1">●</span> Status</span>
+        </div>
+        <div class="moves-filters">
+          <div class="filter-group">
+            <span class="filter-label">Name/Effect:</span>
+            <input type="text" class="filter-input" id="moveSearch" placeholder="Search moves..." oninput="filterMoves()">
+          </div>
+          <div class="filter-group">
+            <span class="filter-label">Type:</span>
+            <select class="filter-select" id="moveTypeFilter" onchange="filterMoves()">
+              <option value="all">- All -</option>
+              ${TYPES.filter(t => t !== 'all').map(t => `<option value="${t}">${t.charAt(0).toUpperCase() + t.slice(1)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="filter-group">
+            <span class="filter-label">Category:</span>
+            <select class="filter-select" id="moveCatFilter" onchange="filterMoves()">
+              <option value="all">- All -</option>
+              <option value="physical">Physical</option>
+              <option value="special">Special</option>
+              <option value="status">Status</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div id="movesTableContainer"></div>
+      <div class="pagination">
+        <button class="page-btn" onclick="changeMovesPage(-1)">Previous</button>
+        <span id="pageInfo" style="align-self:center;color:#8b92a5">Page 1</span>
+        <button class="page-btn" onclick="changeMovesPage(1)">Next</button>
+      </div>
+    `;
+  }
+  
+  filterMoves();
+}
+
+async function filterMoves() {
+  const searchInput = document.getElementById('moveSearch');
+  const typeFilter = document.getElementById('moveTypeFilter');
+  const catFilter = document.getElementById('moveCatFilter');
+
+  if (!searchInput || !typeFilter || !catFilter) return;
+
+  const search = searchInput.value.toLowerCase();
+  const type = typeFilter.value;
+  const cat = catFilter.value;
+  
+  let filtered = allMoves;
+  
+  // Filter by name
+  if (search) {
+    filtered = filtered.filter(m => m.name.includes(search));
+  }
+  
+  // Sort
+  filtered.sort((a, b) => {
+    let va = a[currentMovesSort.field];
+    let vb = b[currentMovesSort.field];
+    
+    if (currentMovesSort.field !== 'name') {
+      const da = moveDetailsCache[a.id];
+      const db = moveDetailsCache[b.id];
+      va = da ? da[currentMovesSort.field] : null;
+      vb = db ? db[currentMovesSort.field] : null;
+      
+      if (va === null) return 1;
+      if (vb === null) return -1;
+    }
+    
+    if (va < vb) return currentMovesSort.dir === 'asc' ? -1 : 1;
+    if (va > vb) return currentMovesSort.dir === 'asc' ? 1 : -1;
+    return 0;
+  });
+  
+  moves = filtered;
+  renderMovesTable();
+}
+
+function changeMovesPage(delta) {
+  const maxPage = Math.ceil(moves.length / MOVES_PER_PAGE);
+  const newPage = movesPage + delta;
+  if (newPage >= 1 && newPage <= maxPage) {
+    movesPage = newPage;
+    renderMovesTable();
+  }
+}
+
+async function renderMovesTable() {
+  const start = (movesPage - 1) * MOVES_PER_PAGE;
+  const end = start + MOVES_PER_PAGE;
+  const pageMoves = moves.slice(start, end);
+  
+  const pageInfo = document.getElementById('pageInfo');
+  if (pageInfo) pageInfo.textContent = `Page ${movesPage} of ${Math.ceil(moves.length / MOVES_PER_PAGE)}`;
+  
+  const container = document.getElementById('movesTableContainer');
+  if (!container) return;
+
+  const html = `
+    <table class="main-move-table">
+      <thead>
+        <tr>
+          <th onclick="sortMoves('name')">Name</th>
+          <th onclick="sortMoves('type')">Type</th>
+          <th onclick="sortMoves('damage_class')">Cat.</th>
+          <th onclick="sortMoves('power')">Power</th>
+          <th onclick="sortMoves('accuracy')">Acc.</th>
+          <th onclick="sortMoves('pp')">PP</th>
+          <th>Effect</th>
+          <th>Prob. (%)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${pageMoves.map(m => {
+          const d = moveDetailsCache[m.id];
+          if (!d) {
+            // Trigger fetch
+            fetchMoveDetails(m.id);
+            return `
+              <tr id="move-row-${m.id}">
+                <td><a class="move-name-link" onclick="moveDetail(${m.id})">${formatName(m.name)}</a></td>
+                <td colspan="7" style="color:#8b92a5;text-align:center;">Loading...</td>
+              </tr>
+            `;
+          }
+          return renderMoveRow(d);
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+  
+  container.innerHTML = html;
+}
+
+function renderMoveRow(d) {
+  const catColor = d.damage_class.name === 'physical' ? '#ff4400' : d.damage_class.name === 'special' ? '#2266cc' : '#999';
+  const catTitle = d.damage_class.name.charAt(0).toUpperCase() + d.damage_class.name.slice(1);
+  const effect = d.effect_entries.find(e => e.language.name === 'en')?.short_effect || d.flavor_text_entries.find(e => e.language.name === 'en')?.flavor_text || '-';
+  
+  return `
+    <tr id="move-row-${d.id}">
+      <td><a class="move-name-link" onclick="moveDetail(${d.id})">${formatName(d.name)}</a></td>
+      <td><span class="type-tag" style="background:${TYPE_COLORS[d.type.name]};font-size:10px;padding:2px 6px;">${d.type.name.toUpperCase()}</span></td>
+      <td style="text-align:center"><span title="${catTitle}" style="color:${catColor};font-size:18px;line-height:1">●</span></td>
+      <td style="text-align:center">${d.power || '-'}</td>
+      <td style="text-align:center">${d.accuracy || '-'}</td>
+      <td style="text-align:center">${d.pp}</td>
+      <td class="move-effect">${effect.replace(/\$effect_chance/g, d.effect_chance)}</td>
+      <td style="text-align:center">${d.effect_chance || '-'}</td>
+    </tr>
+  `;
+}
+
+async function fetchMoveDetails(id) {
+  if (moveDetailsCache[id]) return;
+  try {
+    const d = await fetch(`${API}/move/${id}`).then(r => r.json());
+    moveDetailsCache[id] = d;
+    // Update row if visible
+    const row = document.getElementById(`move-row-${id}`);
+    if (row) {
+      row.outerHTML = renderMoveRow(d);
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function formatName(n) {
+  return n.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function sortMoves(field) {
+  if (currentMovesSort.field === field) {
+    currentMovesSort.dir = currentMovesSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    currentMovesSort.field = field;
+    currentMovesSort.dir = 'asc';
+  }
+  filterMoves();
 }
 
 function renderTypeChart() {

@@ -1,72 +1,72 @@
 /* Type Chart Styles */
 .type-chart-container {
-  width: 100%;
-  overflow-x: auto;
-  padding-bottom: 20px;
-  margin-top: 20px;
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 20px;
+    margin-top: 20px;
 }
 
 .type-chart-table {
-  border-collapse: collapse;
-  font-size: 12px;
-  margin: 0 auto;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin: 0 auto;
 }
 
 .type-chart-table th,
 .type-chart-table td {
-  width: 36px;
-  height: 36px;
-  text-align: center;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 0;
-}
+    width: 36px;
+    height: 36px;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0;
+    }
 
 .type-chart-table th {
-  font-weight: 700;
-  text-transform: uppercase;
-  font-size: 10px;
-  color: #fff;
-  position: relative;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 10px;
+    color: #fff;
+    position: relative;
 }
 
 /* Header cells for types */
 .type-header {
-  writing-mode: vertical-lr;
-  padding: 4px 0;
-  height: 80px !important;
+    writing-mode: vertical-lr;
+    padding: 4px 0;
+    height: 80px !important;
 }
 
 .type-header-row {
-  height: 36px !important;
-  writing-mode: horizontal-tb;
-  transform: none;
+    height: 36px !important;
+    writing-mode: horizontal-tb;
+    transform: none;
 }
 
 /* Effectiveness Cells */
 .eff-2 {
-  background-color: #4e9a06; /* Green for 2x */
-  color: #fff;
-  font-weight: bold;
+    background-color: #4e9a06; /* Green for 2x */
+    color: #fff;
+    font-weight: bold;
 }
 
 .eff-0-5 {
-  background-color: #a40000; /* Red for 1/2x */
-  color: #fff;
-  font-weight: bold;
+    background-color: #a40000; /* Red for 1/2x */
+    color: #fff;
+    font-weight: bold;
 }
 
 .eff-0 {
-  background-color: #2e3440; /* Dark Grey for 0x */
-  color: #888;
+    background-color: #2e3440; /* Dark Grey for 0x */
+    color: #888;
 }
 
 .eff-1 {
-  background-color: transparent;
+    background-color: transparent;
 }
 
 /* Hover effects */
 .type-chart-table tr:hover td {
-  background-color: rgba(255, 255, 255, 0.05);
+    background-color: rgba(255, 255, 255, 0.05);
 }
 
 .type-chart-table tr:hover .eff-2 { background-color: #5ea816; }
@@ -75,18 +75,18 @@
 
 /* Axis Labels */
 .axis-label {
-  font-size: 11px;
-  color: #8b92a5;
-  padding: 4px;
+    font-size: 11px;
+    color: #8b92a5;
+    padding: 4px;
 }
 
 .def-label {
-  text-align: center;
-  padding-bottom: 8px;
+    text-align: center;
+    padding-bottom: 8px;
 }
 
 .atk-label {
-  writing-mode: vertical-lr;
-  text-align: center;
-  padding-right: 8px;
+    writing-mode: vertical-lr;
+    text-align: center;
+    padding-right: 8px;
 }
