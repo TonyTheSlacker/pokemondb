@@ -78,18 +78,6 @@
   object-fit: contain;
 }
 
-.detail-left {
-  /* Image column */
-}
-
-.detail-middle {
-  /* Pokedex Data column */
-}
-
-.detail-right {
-  /* Training/Breeding column */
-}
-
 .data-table {
   width: 100%;
   border-collapse: collapse;
@@ -124,7 +112,8 @@
   margin-bottom: 30px;
 }
 
-.stats-table th, .stats-table td {
+.stats-table th,
+.stats-table td {
   padding: 8px 0;
   border-bottom: 1px solid #1e2337;
 }
@@ -212,6 +201,264 @@
   margin-top: 30px;
 }
 
+/* Dex entries (generation tabs) */
+.dex-entries-section {
+  margin-top: 25px;
+}
+
+.dex-tabs {
+  display: flex;
+  gap: 2px;
+  background: #151928;
+  border-radius: 6px;
+  overflow: hidden;
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.dex-tab {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #8b92a5;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.dex-tab:hover {
+  background: #1e2337;
+  color: #f5f7ff;
+}
+
+.dex-tab.active {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f5f7ff;
+  box-shadow: inset 0 -2px 0 #3bd5ff;
+}
+
+.dex-panels {
+  margin-top: 12px;
+  border-top: 1px solid #1e2337;
+}
+
+.dex-panel {
+  display: none;
+}
+
+.dex-panel.active {
+  display: block;
+}
+
+.dex-entry-row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 20px;
+  padding: 14px 0;
+  border-bottom: 1px solid #1e2337;
+}
+
+.dex-entry-game {
+  color: #8b92a5;
+  font-weight: 700;
+  text-align: right;
+  padding-right: 10px;
+}
+
+.dex-entry-text {
+  color: #f5f7ff;
+  line-height: 1.6;
+}
+
+.dex-empty {
+  color: #8b92a5;
+  font-size: 14px;
+  padding: 10px 0;
+}
+
+@media (max-width: 900px) {
+  .dex-entry-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .dex-entry-game {
+    text-align: left;
+    padding-right: 0;
+  }
+}
+
+/* Learnset (moves learned) */
+.learnset-section {
+  margin-top: 30px;
+}
+
+.learnset-genbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  margin-bottom: 14px;
+}
+
+.learnset-genlabel {
+  color: #f5f7ff;
+  font-weight: 700;
+}
+
+.learnset-gens {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  background: #151928;
+  border-radius: 6px;
+  overflow: hidden;
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.learnset-genbtn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #8b92a5;
+  cursor: pointer;
+  font-weight: 600;
+  padding: 10px 16px;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.learnset-genbtn:hover {
+  background: #1e2337;
+  color: #f5f7ff;
+}
+
+.learnset-genbtn.active {
+  color: #f5f7ff;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 -2px 0 #3bd5ff;
+}
+
+.learnset-gametabs {
+  display: flex;
+  gap: 2px;
+  background: #151928;
+  border-radius: 6px;
+  overflow: hidden;
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+  margin-bottom: 18px;
+}
+
+.learnset-gametab {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #8b92a5;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.learnset-gametab:hover {
+  background: #1e2337;
+  color: #f5f7ff;
+}
+
+.learnset-gametab.active {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f5f7ff;
+  box-shadow: inset 0 -2px 0 #3bd5ff;
+}
+
+.learnset-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.learnset-col-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #f5f7ff;
+  margin-bottom: 8px;
+}
+
+.learnset-col-desc {
+  color: #8b92a5;
+  font-size: 14px;
+  margin-bottom: 14px;
+}
+
+.learnset-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  background: #151928;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.learnset-table thead th {
+  background: rgba(255, 255, 255, 0.03);
+  color: #f5f7ff;
+  font-weight: 700;
+  text-align: left;
+  padding: 12px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  white-space: nowrap;
+}
+
+.learnset-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: #f5f7ff;
+  vertical-align: middle;
+}
+
+.learnset-table tr:last-child td {
+  border-bottom: none;
+}
+
+.learnset-table tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.learnset-lv,
+.learnset-tm {
+  color: #8b92a5;
+  font-weight: 700;
+}
+
+.learnset-move {
+  color: #3bd5ff;
+  font-weight: 700;
+}
+
+.learnset-empty {
+  color: #8b92a5;
+  font-size: 14px;
+  padding: 10px 0;
+}
+
+@media (max-width: 1100px) {
+  .learnset-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .detail-header-row {
   display: flex;
   align-items: baseline;
@@ -249,33 +496,321 @@
 
 .evolution-container {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  gap: 40px;
+  gap: 0;
   overflow-x: auto;
   padding: 30px 0;
 }
 
-.evo-stage {
+.evo-chain-container {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.evo-pokemon-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.evo-branches-grid {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.evo-branches-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  align-items: flex-start;
+  margin-left: 30px;
+}
+
+.evo-branch-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: auto;
+}
+
+.evo-branch-row .evo-arrow-container {
+  min-width: 200px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.evo-branch-row .evo-arrow-symbol {
+  font-size: 24px;
+  min-width: 30px;
+}
+
+.evo-branch-row .evo-method {
+  white-space: normal;
+  max-width: 150px;
+  line-height: 1.3;
+}
+
+.evo-branch-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.evo-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 16px;
   text-align: center;
-  transition: transform 0.2s;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  min-width: 160px;
+  position: relative;
+  overflow: hidden;
 }
 
-.evo-stage:hover {
-  transform: scale(1.05);
+.evo-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(59, 213, 255, 0), rgba(59, 213, 255, 0.05));
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
-.evo-arrow {
-  color: #8b92a5;
+.evo-card:hover {
+  transform: translateY(-4px);
+  border-color: #3bd5ff;
+  box-shadow: 0 8px 20px rgba(59, 213, 255, 0.15);
+}
+
+.evo-card:hover::before {
+  opacity: 1;
+}
+
+.evo-card-image {
+  width: 140px;
+  height: 140px;
+  background: #fff;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 8px;
+  position: relative;
+  z-index: 1;
+}
+
+.evo-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 8px;
+}
+
+.evo-card-number {
+  color: #3bd5ff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  position: relative;
+  z-index: 1;
+}
+
+.evo-card-name {
+  color: #f5f7ff;
+  font-size: 16px;
+  font-weight: 700;
+  position: relative;
+  z-index: 1;
+}
+
+.evo-card-variant {
+  color: #ff8c42;
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 4px;
+  letter-spacing: 0.5px;
+  position: relative;
+  z-index: 1;
+}
+
+.evo-card-types {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 1;
+}
+
+.evo-type-badge {
+  padding: 4px 10px;
+  border-radius: 6px;
+  color: white;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: capitalize;
+}
+
+.evo-arrow-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 60px;
+  justify-content: center;
+}
+
+.evo-arrow-symbol {
+  color: #3bd5ff;
   font-size: 24px;
   font-weight: bold;
 }
 
-.evo-img {
-  width: 160px;
-  height: 160px;
-  margin-bottom: 10px;
-  object-fit: contain;
+.evo-method {
+  background: rgba(59, 213, 255, 0.1);
+  border: 1px solid rgba(59, 213, 255, 0.3);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 11px;
+  color: #3bd5ff;
+  text-align: center;
+  white-space: normal;
+  max-width: 140px;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.evo-arrow-variant .evo-arrow-symbol {
+  color: #ff8c42;
+}
+
+.evo-arrow-variant .evo-method {
+  background: rgba(255, 140, 66, 0.1);
+  border-color: rgba(255, 140, 66, 0.3);
+  color: #ff8c42;
+}
+
+/* Eevee Special Radial Layout */
+.evo-eevee-radial {
+  position: relative;
+  width: min(980px, 95vw);
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
+}
+
+.evo-eevee-radial-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.evo-eevee-arrow-line {
+  stroke: rgba(255, 255, 255, 0.35);
+  stroke-width: 3;
+}
+
+.evo-eevee-arrow-head {
+  fill: rgba(255, 255, 255, 0.6);
+}
+
+.evo-eevee-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+}
+
+.evo-eevee-item {
+  position: absolute;
+  left: var(--left);
+  top: var(--top);
+  transform: translate(-50%, -50%);
+  z-index: 2;
+}
+
+.evo-eevee-label {
+  position: absolute;
+  left: var(--left);
+  top: var(--top);
+  transform: translate(-50%, -50%);
+  z-index: 4;
+  pointer-events: none;
+}
+
+/* Eevee labels reuse .evo-method styling; only override sizing slightly */
+.evo-eevee-label.evo-method {
+  max-width: 160px;
+}
+
+.evo-eevee-radial .evo-pokemon-card {
+  gap: 10px;
+}
+
+.evo-eevee-radial .evo-card {
+  min-width: 155px;
+}
+
+.evo-eevee-radial .evo-card-image {
+  width: 120px;
+  height: 120px;
+}
+
+/* Responsive fallback: stack on smaller screens */
+@media (max-width: 768px) {
+  .evo-eevee-radial {
+    width: 95vw;
+    aspect-ratio: auto;
+    height: auto;
+    padding: 10px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .evo-eevee-radial-svg {
+    display: none;
+  }
+
+  .evo-eevee-center,
+  .evo-eevee-item,
+  .evo-eevee-label {
+    position: static;
+    transform: none;
+  }
+
+  .evo-eevee-center {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 18px;
+  }
+
+  .evo-eevee-label {
+    display: none;
+  }
+
+  .evo-eevee-radial .evo-eevee-item {
+    width: 100%;
+    max-width: 520px;
+    display: flex;
+    justify-content: center;
+    margin: 10px 0;
+  }
 }
 
 /* Loading Spinner */
@@ -387,3 +922,5 @@
         justify-content: center !important;
     }
 }
+
+

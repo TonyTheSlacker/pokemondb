@@ -89,6 +89,182 @@ const VERSION_GROUP_TO_GEN = {
 'scarlet-violet': 9
 };
 
+// Mainline game versions for dex flavor text (pokemon-species.flavor_text_entries)
+const MAINLINE_VERSION_META = {
+    // Gen I
+    'red': { gen: 1, label: 'Red' },
+    'blue': { gen: 1, label: 'Blue' },
+    'yellow': { gen: 1, label: 'Yellow' },
+
+    // Gen II
+    'gold': { gen: 2, label: 'Gold' },
+    'silver': { gen: 2, label: 'Silver' },
+    'crystal': { gen: 2, label: 'Crystal' },
+
+    // Gen III
+    'ruby': { gen: 3, label: 'Ruby' },
+    'sapphire': { gen: 3, label: 'Sapphire' },
+    'emerald': { gen: 3, label: 'Emerald' },
+    'firered': { gen: 3, label: 'FireRed' },
+    'leafgreen': { gen: 3, label: 'LeafGreen' },
+
+    // Gen IV
+    'diamond': { gen: 4, label: 'Diamond' },
+    'pearl': { gen: 4, label: 'Pearl' },
+    'platinum': { gen: 4, label: 'Platinum' },
+    'heartgold': { gen: 4, label: 'HeartGold' },
+    'soulsilver': { gen: 4, label: 'SoulSilver' },
+
+    // Gen V
+    'black': { gen: 5, label: 'Black' },
+    'white': { gen: 5, label: 'White' },
+    'black-2': { gen: 5, label: 'Black 2' },
+    'white-2': { gen: 5, label: 'White 2' },
+
+    // Gen VI
+    'x': { gen: 6, label: 'X' },
+    'y': { gen: 6, label: 'Y' },
+    'omega-ruby': { gen: 6, label: 'Omega Ruby' },
+    'alpha-sapphire': { gen: 6, label: 'Alpha Sapphire' },
+
+    // Gen VII
+    'sun': { gen: 7, label: 'Sun' },
+    'moon': { gen: 7, label: 'Moon' },
+    'ultra-sun': { gen: 7, label: 'Ultra Sun' },
+    'ultra-moon': { gen: 7, label: 'Ultra Moon' },
+    'lets-go-pikachu': { gen: 7, label: "Let's Go Pikachu" },
+    'lets-go-eevee': { gen: 7, label: "Let's Go Eevee" },
+
+    // Gen VIII
+    'sword': { gen: 8, label: 'Sword' },
+    'shield': { gen: 8, label: 'Shield' },
+    'brilliant-diamond': { gen: 8, label: 'Brilliant Diamond' },
+    'shining-pearl': { gen: 8, label: 'Shining Pearl' },
+    'legends-arceus': { gen: 8, label: 'Legends: Arceus' },
+
+    // Gen IX
+    'scarlet': { gen: 9, label: 'Scarlet' },
+    'violet': { gen: 9, label: 'Violet' },
+    // Not currently present in PokeAPI as of now, but included for forward-compat.
+    'legends-z-a': { gen: 9, label: 'Legends: Z-A' }
+};
+
+const GEN_VERSION_ORDER = {
+    1: ['red', 'blue', 'yellow'],
+    2: ['gold', 'silver', 'crystal'],
+    3: ['ruby', 'sapphire', 'emerald', 'firered', 'leafgreen'],
+    4: ['diamond', 'pearl', 'platinum', 'heartgold', 'soulsilver'],
+    5: ['black', 'white', 'black-2', 'white-2'],
+    6: ['x', 'y', 'omega-ruby', 'alpha-sapphire'],
+    7: ['sun', 'moon', 'ultra-sun', 'ultra-moon', 'lets-go-pikachu', 'lets-go-eevee'],
+    8: ['sword', 'shield', 'brilliant-diamond', 'shining-pearl', 'legends-arceus'],
+    9: ['scarlet', 'violet', 'legends-z-a']
+};
+
+function normalizeFlavorText(text) {
+    return (text || '')
+        .replace(/\f/g, ' ')
+        .replace(/\n/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function buildDexEntriesByGeneration(species) {
+    const byVersion = new Map();
+    const entries = (species?.flavor_text_entries || []).filter(e => e?.language?.name === 'en');
+
+    for (const entry of entries) {
+        const versionName = entry?.version?.name;
+        if (!versionName) continue;
+        if (!MAINLINE_VERSION_META[versionName]) continue;
+        if (byVersion.has(versionName)) continue;
+
+        const text = normalizeFlavorText(entry.flavor_text);
+        if (!text) continue;
+        byVersion.set(versionName, text);
+    }
+
+    const byGen = {};
+    for (let gen = 1; gen <= 9; gen++) {
+        const order = GEN_VERSION_ORDER[gen] || [];
+        const rows = order
+            .filter(v => byVersion.has(v))
+            .map(v => ({
+                version: v,
+                label: MAINLINE_VERSION_META[v].label,
+                text: byVersion.get(v)
+            }));
+        if (rows.length) byGen[gen] = rows;
+    }
+
+    return byGen;
+}
+
+function renderDexEntriesSectionHtml(species) {
+    const byGen = buildDexEntriesByGeneration(species);
+
+    const gensWithEntries = Object.keys(byGen)
+        .map(n => parseInt(n, 10))
+        .filter(n => !Number.isNaN(n))
+        .sort((a, b) => a - b);
+    const firstActiveGen = gensWithEntries[0] || 1;
+
+    const allGens = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+    const tabs = allGens.map(gen => {
+        const active = gen === firstActiveGen ? ' active' : '';
+        return `<button type="button" class="dex-tab${active}" data-dex-gen="${gen}" role="tab">Gen ${gen}</button>`;
+    }).join('');
+
+    const panels = allGens.map(gen => {
+        const active = gen === firstActiveGen ? ' active' : '';
+        const rowsData = byGen[gen] || [];
+        const rows = rowsData
+            .map(r => `
+                <div class="dex-entry-row">
+                    <div class="dex-entry-game">${r.label}</div>
+                    <div class="dex-entry-text">${r.text}</div>
+                </div>
+            `)
+            .join('');
+
+        let emptyText = 'No entries for this generation.';
+        if (gen === 9) emptyText = 'No Scarlet/Violet entries for this species in PokeAPI.';
+        const empty = rowsData.length ? '' : `<div class="dex-empty">${emptyText}</div>`;
+
+        return `
+            <div class="dex-panel${active}" data-dex-panel="${gen}" role="tabpanel">
+                ${rows || empty}
+            </div>
+        `;
+    }).join('');
+
+    return `
+        <div class="full-width-section dex-entries-section">
+            <h3 class="section-header">Pokédex entries</h3>
+            <div class="dex-tabs" role="tablist">${tabs}</div>
+            <div class="dex-panels">${panels}</div>
+        </div>
+    `;
+}
+
+function setupDexEntryTabs(root) {
+    if (!root) return;
+    const tabs = root.querySelectorAll('.dex-tab');
+    if (!tabs.length) return;
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const gen = tab.dataset.dexGen;
+            root.querySelectorAll('.dex-tab').forEach(t => t.classList.remove('active'));
+            root.querySelectorAll('.dex-panel').forEach(p => p.classList.remove('active'));
+            tab.classList.add('active');
+            const panel = root.querySelector(`.dex-panel[data-dex-panel="${gen}"]`);
+            if (panel) panel.classList.add('active');
+        });
+    });
+}
+
 const POKEDEX_IDS = {
   'national': 1,
   'kanto': 2,
@@ -124,12 +300,323 @@ const POKEDEX_IDS = {
 };
 
 const moveDetailsCache = {};
+const machineDetailsCache = {};
 const pokemonDetailsCache = {};
 let currentPokemonMoves = {};
 
+// Detail-page learnset store (per form)
+const learnsetStore = {};
+
+function getVersionGroupDisplayName(vg) {
+    const map = {
+        'red-blue': 'Red/Blue',
+        'yellow': 'Yellow',
+        'gold-silver': 'Gold/Silver',
+        'crystal': 'Crystal',
+        'ruby-sapphire': 'Ruby/Sapphire',
+        'emerald': 'Emerald',
+        'firered-leafgreen': 'FireRed/LeafGreen',
+        'diamond-pearl': 'Diamond/Pearl',
+        'platinum': 'Platinum',
+        'heartgold-soulsilver': 'HeartGold/SoulSilver',
+        'black-white': 'Black/White',
+        'black-2-white-2': 'Black 2/White 2',
+        'x-y': 'X/Y',
+        'omega-ruby-alpha-sapphire': 'Omega Ruby/Alpha Sapphire',
+        'sun-moon': 'Sun/Moon',
+        'ultra-sun-ultra-moon': 'Ultra Sun/Ultra Moon',
+        'lets-go-pikachu-lets-go-eevee': "Let's Go",
+        'sword-shield': 'Sword/Shield',
+        'brilliant-diamond-shining-pearl': 'Brilliant Diamond/Shining Pearl',
+        'legends-arceus': 'Legends: Arceus',
+        'scarlet-violet': 'Scarlet/Violet'
+    };
+    return map[vg] || vg.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function buildLearnsetData(pokemonData) {
+    const byGen = {};
+    const moves = pokemonData?.moves || [];
+
+    for (const m of moves) {
+        const moveName = m?.move?.name;
+        const moveUrl = m?.move?.url;
+        if (!moveName || !moveUrl) continue;
+
+        for (const vgd of (m.version_group_details || [])) {
+            const vg = vgd?.version_group?.name;
+            const method = vgd?.move_learn_method?.name;
+            if (!vg || !method) continue;
+            const gen = VERSION_GROUP_TO_GEN[vg];
+            if (!gen) continue;
+
+            if (!byGen[gen]) byGen[gen] = {};
+            if (!byGen[gen][vg]) byGen[gen][vg] = {};
+            if (!byGen[gen][vg][method]) byGen[gen][vg][method] = [];
+
+            byGen[gen][vg][method].push({
+                name: moveName,
+                url: moveUrl,
+                level: vgd.level_learned_at || 0
+            });
+        }
+    }
+
+    // Sort lists
+    Object.keys(byGen).forEach(gen => {
+        Object.keys(byGen[gen]).forEach(vg => {
+            Object.keys(byGen[gen][vg]).forEach(method => {
+                const list = byGen[gen][vg][method];
+                if (method === 'level-up') {
+                    list.sort((a, b) => (a.level - b.level) || a.name.localeCompare(b.name));
+                } else {
+                    list.sort((a, b) => a.name.localeCompare(b.name));
+                }
+            });
+        });
+    });
+
+    return byGen;
+}
+
+function renderLearnsetSectionHtml(pokemonData, learnsetKey) {
+    const data = learnsetStore[learnsetKey];
+    const gens = Object.keys(data || {}).map(n => parseInt(n, 10)).filter(n => !Number.isNaN(n)).sort((a, b) => a - b);
+    if (!gens.length) {
+        return `
+            <div class="full-width-section learnset-section" data-learnset-key="${learnsetKey}">
+                <h3 class="section-header">Moves learned by ${pokemonData.name.replace(/\b\w/g, l => l.toUpperCase())}</h3>
+                <div class="learnset-empty">No move learnset data available.</div>
+            </div>
+        `;
+    }
+
+    const activeGen = Math.max(...gens);
+
+    const genButtons = gens.map(g => {
+        const active = g === activeGen ? ' active' : '';
+        return `<button type="button" class="learnset-genbtn${active}" data-learnset-gen="${g}">${g}</button>`;
+    }).join('');
+
+    return `
+        <div class="full-width-section learnset-section" data-learnset-key="${learnsetKey}" data-active-gen="${activeGen}">
+            <h3 class="section-header">Moves learned by ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)}</h3>
+            <div class="learnset-genbar">
+                <div class="learnset-genlabel">In other generations</div>
+                <div class="learnset-gens">${genButtons}</div>
+            </div>
+            <div class="learnset-gametabs" role="tablist"></div>
+            <div class="learnset-grid">
+                <div class="learnset-col" data-method="level-up">
+                    <div class="learnset-col-title">Moves learnt by level up</div>
+                    <div class="learnset-col-desc"></div>
+                    <div class="learnset-table-wrap"></div>
+                </div>
+                <div class="learnset-col" data-method="machine">
+                    <div class="learnset-col-title">Moves learnt by TM</div>
+                    <div class="learnset-col-desc"></div>
+                    <div class="learnset-table-wrap"></div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function setupLearnsetSection(root) {
+    if (!root) return;
+    const section = root.querySelector('.learnset-section');
+    if (!section) return;
+
+    const key = section.dataset.learnsetKey;
+    const data = learnsetStore[key];
+    if (!data) return;
+
+    const gens = Object.keys(data).map(n => parseInt(n, 10)).filter(n => !Number.isNaN(n)).sort((a, b) => a - b);
+    const defaultGen = parseInt(section.dataset.activeGen || '', 10) || Math.max(...gens);
+
+    section.querySelectorAll('.learnset-genbtn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const gen = parseInt(btn.dataset.learnsetGen || '', 10);
+            if (!gen) return;
+            section.dataset.activeGen = String(gen);
+            section.querySelectorAll('.learnset-genbtn').forEach(b => b.classList.toggle('active', b === btn));
+            renderLearnsetForGen(section, gen);
+        });
+    });
+
+    renderLearnsetForGen(section, defaultGen);
+}
+
+function renderLearnsetForGen(section, gen) {
+    const key = section.dataset.learnsetKey;
+    const data = learnsetStore[key] || {};
+    const genData = data[gen] || {};
+
+    const versionGroups = Object.keys(genData);
+    versionGroups.sort((a, b) => getVersionGroupDisplayName(a).localeCompare(getVersionGroupDisplayName(b)));
+
+    const gameTabs = section.querySelector('.learnset-gametabs');
+    if (!versionGroups.length) {
+        if (gameTabs) gameTabs.innerHTML = '';
+        section.querySelectorAll('.learnset-table-wrap').forEach(w => w.innerHTML = '<div class="learnset-empty">No data for this generation.</div>');
+        section.querySelectorAll('.learnset-col-desc').forEach(d => d.textContent = '');
+        return;
+    }
+
+    const activeVg = versionGroups[0];
+    section.dataset.activeVg = activeVg;
+
+    if (gameTabs) {
+        gameTabs.innerHTML = versionGroups.map((vg, idx) => {
+            const active = idx === 0 ? ' active' : '';
+            return `<button type="button" class="learnset-gametab${active}" data-learnset-vg="${vg}" role="tab">${getVersionGroupDisplayName(vg)}</button>`;
+        }).join('');
+
+        gameTabs.querySelectorAll('.learnset-gametab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const vg = tab.dataset.learnsetVg;
+                if (!vg) return;
+                section.dataset.activeVg = vg;
+                gameTabs.querySelectorAll('.learnset-gametab').forEach(t => t.classList.toggle('active', t === tab));
+                renderLearnsetTables(section, gen, vg);
+            });
+        });
+    }
+
+    renderLearnsetTables(section, gen, activeVg);
+}
+
+function renderLearnsetTables(section, gen, vg) {
+    const key = section.dataset.learnsetKey;
+    const data = learnsetStore[key] || {};
+    const methods = (data[gen] && data[gen][vg]) ? data[gen][vg] : {};
+
+    const pokemonName = (document.querySelector('.detail-h1')?.textContent || 'This Pokémon').trim();
+    const gameName = getVersionGroupDisplayName(vg);
+
+    const levelMoves = methods['level-up'] || [];
+    const tmMoves = methods['machine'] || [];
+
+    const left = section.querySelector('.learnset-col[data-method="level-up"]');
+    const right = section.querySelector('.learnset-col[data-method="machine"]');
+
+    if (left) {
+        const desc = left.querySelector('.learnset-col-desc');
+        if (desc) desc.textContent = `${pokemonName} learns the following moves in ${gameName} at the levels specified.`;
+        const wrap = left.querySelector('.learnset-table-wrap');
+        if (wrap) wrap.innerHTML = renderLearnsetTableHtml('level-up', levelMoves, vg);
+    }
+
+    if (right) {
+        const desc = right.querySelector('.learnset-col-desc');
+        if (desc) desc.textContent = `${pokemonName} is compatible with these Technical Machines in ${gameName}:`;
+        const wrap = right.querySelector('.learnset-table-wrap');
+        if (wrap) wrap.innerHTML = renderLearnsetTableHtml('machine', tmMoves, vg);
+    }
+
+    loadLearnsetMoveDetails(section, vg);
+}
+
+function renderLearnsetTableHtml(method, moves, vg) {
+    if (!moves.length) {
+        return `<div class="learnset-empty">No moves available.</div>`;
+    }
+
+    const isLevel = method === 'level-up';
+    const isTM = method === 'machine';
+
+    return `
+        <table class="learnset-table">
+            <thead>
+                <tr>
+                    ${isLevel ? '<th style="width:60px">Lv.</th>' : ''}
+                    ${isTM ? '<th style="width:60px">TM</th>' : ''}
+                    <th>Move</th>
+                    <th style="width:90px">Type</th>
+                    <th style="width:70px">Cat.</th>
+                    <th style="width:70px">Pwr.</th>
+                    <th style="width:70px">Acc.</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${moves.map(m => `
+                    <tr class="learnset-move-row" data-url="${m.url}" data-method="${method}" data-vg="${vg}">
+                        ${isLevel ? `<td class="learnset-lv">${m.level || 1}</td>` : ''}
+                        ${isTM ? `<td class="learnset-tm">-</td>` : ''}
+                        <td class="learnset-move">${m.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</td>
+                        <td class="type-cell">-</td>
+                        <td class="cat-cell">-</td>
+                        <td class="pwr-cell">-</td>
+                        <td class="acc-cell">-</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+async function loadLearnsetMoveDetails(section, vg) {
+    const rows = section.querySelectorAll('.learnset-move-row');
+    for (const row of rows) {
+        const url = row.dataset.url;
+        const id = url.split('/').filter(Boolean).pop();
+        const method = row.dataset.method;
+
+        const apply = async (d) => {
+            row.querySelector('.type-cell').innerHTML = `<span class="type-tag" style="background:${TYPE_COLORS[d.type.name]};font-size:10px;padding:2px 6px;">${d.type.name.toUpperCase()}</span>`;
+
+            const catColor = d.damage_class.name === 'physical' ? '#ff4400' : d.damage_class.name === 'special' ? '#2266cc' : '#999';
+            const catTitle = d.damage_class.name.charAt(0).toUpperCase() + d.damage_class.name.slice(1);
+            row.querySelector('.cat-cell').innerHTML = `<span title="${catTitle}" style="color:${catColor};font-size:18px;line-height:1">●</span>`;
+
+            row.querySelector('.pwr-cell').textContent = d.power || '-';
+            row.querySelector('.acc-cell').textContent = d.accuracy || '-';
+
+            // TM number (best-effort via machine endpoint)
+            if (method === 'machine') {
+                const machineEntry = (d.machines || []).find(me => me?.version_group?.name === vg);
+                const machineUrl = machineEntry?.machine?.url;
+                if (machineUrl) {
+                    const machineId = machineUrl.split('/').filter(Boolean).pop();
+                    try {
+                        const machine = machineDetailsCache[machineId] || await fetch(machineUrl).then(r => r.json());
+                        machineDetailsCache[machineId] = machine;
+                        const itemName = machine?.item?.name || '';
+                        const match = itemName.match(/(tm|tr)(\d+)/i);
+                        let tmText = itemName.toUpperCase();
+                        if (match) {
+                            const num = match[2];
+                            // Keep leading zeros for display like PokémonDB
+                            tmText = num.length >= 2 ? num : num.padStart(2, '0');
+                        }
+                        const tmCell = row.querySelector('.learnset-tm');
+                        if (tmCell) tmCell.textContent = tmText;
+                    } catch (e) {
+                        // leave as '-'
+                    }
+                }
+            }
+
+            row.style.cursor = 'pointer';
+            row.onclick = () => moveDetail(d.id);
+        };
+
+        if (moveDetailsCache[id]) {
+            apply(moveDetailsCache[id]);
+        } else {
+            fetch(url).then(r => r.json()).then(d => {
+                moveDetailsCache[id] = d;
+                apply(d);
+            }).catch(() => {});
+        }
+    }
+}
+
 async function init() {
-    document.querySelector('.subtitle').textContent = 'Search and explore all 1,025 Pokémon';
-    document.getElementById('grid').innerHTML = '<div class="loading">Loading Pokémon...</div>';
+    const subtitle = document.querySelector('.subtitle');
+    const grid = document.getElementById('grid');
+    if (subtitle) subtitle.textContent = 'Search and explore all 1,025 Pokémon';
+    if (grid) grid.innerHTML = '<div class="loading">Loading Pokémon...</div>';
     allPokemon = await fetch(`${API}/pokemon?limit=1025`).then(r => r.json()).then(d => d.results.map((p, i) => ({ id: i + 1, name: p.name })));
     pokemon = [...allPokemon];
     
@@ -462,7 +949,7 @@ async function renderMovesTable() {
             fetchMoveDetails(m.id);
             return `
               <tr id="move-row-${m.id}">
-                <td><a class="move-name-link" onclick="moveDetail(${m.id})">${formatName(m.name)}</a></td>
+                                <td><a class="move-name-link" href="move-detail.html?move=${m.id}">${formatName(m.name)}</a></td>
                 <td colspan="7" style="color:#8b92a5;text-align:center;">Loading...</td>
               </tr>
             `;
@@ -483,7 +970,7 @@ function renderMoveRow(d) {
   
   return `
     <tr id="move-row-${d.id}">
-      <td><a class="move-name-link" onclick="moveDetail(${d.id})">${formatName(d.name)}</a></td>
+            <td><a class="move-name-link" href="move-detail.html?move=${d.id}">${formatName(d.name)}</a></td>
       <td><span class="type-tag" style="background:${TYPE_COLORS[d.type.name]};font-size:10px;padding:2px 6px;">${d.type.name.toUpperCase()}</span></td>
       <td style="text-align:center"><span title="${catTitle}" style="color:${catColor};font-size:18px;line-height:1">●</span></td>
       <td style="text-align:center">${d.power || '-'}</td>
@@ -620,7 +1107,7 @@ if (currentPage === 'pokedex') {
     
     document.getElementById('empty').style.display = 'none';
     grid.innerHTML = filtered.map(p => `
-    <div class="card" onclick="window.location.href='pokemon.html?id=${p.id}'">
+    <div class="card" id="card-${p.id}" onclick="window.location.href='pokemon.html?id=${p.id}'">
         <div class="card-header">
         <div class="card-name">${p.name.charAt(0).toUpperCase() + p.name.slice(1)}</div>
         <div class="card-id">#${String(p.dexId || p.id).padStart(3, '0')}</div>
@@ -628,9 +1115,12 @@ if (currentPage === 'pokedex') {
         <div class="card-image">
         <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png" alt="${p.name}" onerror="this.style.display='none'">
         </div>
-        <div class="card-types">${p.types ? p.types.map(t => `<span class="type-tag" style="background: ${TYPE_COLORS[t]}">${t}</span>`).join('') : ''}</div>
+        <div class="card-types">${p.types ? p.types.map(t => `<span class="type-tag" style="background: ${TYPE_COLORS[t]}">${t}</span>`).join('') : '<span class="loading-small" style="font-size:10px">...</span>'}</div>
     </div>
     `).join('');
+    
+    // Lazy load types for each card
+    fetchPokedexTypes(filtered);
 } else if (currentPage === 'moves') {
     let filtered = moves;
     
@@ -660,42 +1150,48 @@ if (currentPage === 'pokedex') {
 }
 }
 
-async function moveDetail(id) {
-const d = await fetch(`${API}/move/${id}`).then(r => r.json());
-const name = d.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-document.getElementById('modalTitle').textContent = name;
+function fetchPokedexTypes(pokemonList) {
+    const observer = new IntersectionObserver((entries, obs) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const card = entry.target;
+                const id = card.id.replace('card-', '');
+                fetchPokemonTypeForCard(id, card);
+                obs.unobserve(card);
+            }
+        });
+    }, { rootMargin: '200px' }); // Preload 200px before view
 
-const effect = d.effect_entries.find(e => e.language.name === 'en')?.effect || 'No description available.';
-const flavor = d.flavor_text_entries.find(e => e.language.name === 'en')?.flavor_text || '';
+    pokemonList.forEach(p => {
+        if (!p.types) {  // Only observe if types aren't already loaded
+            const card = document.getElementById(`card-${p.id}`);
+            if (card) observer.observe(card);
+        }
+    });
+}
 
-document.getElementById('modalBody').innerHTML = `
-    <div style="margin-bottom: 20px; font-size: 16px; color: #f5f7ff; line-height: 1.5;">
-    ${flavor}
-    </div>
+async function fetchPokemonTypeForCard(id, card) {
+    if (card.dataset.loaded) return;
+    card.dataset.loaded = 'true';
     
-    <div style="display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap;">
-    <span class="type-tag" style="background: ${TYPE_COLORS[d.type.name]}">${d.type.name}</span>
-    <span class="type-tag" style="background: #333; border: 1px solid #555;">${d.damage_class.name.toUpperCase()}</span>
-    </div>
-    
-    <div class="detail-grid">
-    <div class="detail-item"><div class="detail-label">Power</div><div class="detail-value">${d.power || '-'}</div></div>
-    <div class="detail-item"><div class="detail-label">Accuracy</div><div class="detail-value">${d.accuracy || '-'}</div></div>
-    <div class="detail-item"><div class="detail-label">PP</div><div class="detail-value">${d.pp}</div></div>
-    <div class="detail-item"><div class="detail-label">Priority</div><div class="detail-value">${d.priority}</div></div>
-    </div>
-    
-    <div class="stats-section">
-    <div class="section-title">Effect</div>
-    <div style="font-size: 14px; color: #ccc; line-height: 1.6;">${effect.replace(/\$effect_chance/g, d.effect_chance)}</div>
-    </div>
-    
-    <div class="stats-section">
-    <div class="section-title">Target</div>
-    <div style="font-size: 14px; color: #3bd5ff;">${d.target.name.replace(/-/g, ' ')}</div>
-    </div>
-`;
-document.getElementById('modal').classList.add('open');
+    try {
+        if (pokemonDetailsCache[id]) {
+            renderTypes(card, pokemonDetailsCache[id].types);
+            return;
+        }
+
+        const pData = await fetch(`${API}/pokemon/${id}`).then(r => r.json());
+        pokemonDetailsCache[id] = pData; // Cache full data
+        renderTypes(card, pData.types);
+    } catch (e) {
+        console.error(`Error fetching details for ${id}`, e);
+        const typeContainer = card.querySelector('.card-types');
+        if (typeContainer) typeContainer.innerHTML = '<span class="error">Err</span>';
+    }
+}
+
+function moveDetail(id) {
+    window.location.href = `move-detail.html?move=${id}`;
 }
 
 async function setFilter(t) {
@@ -1018,6 +1514,10 @@ if (detailContainer) {
     }
 } else if (eggGroupList || eggGroupRoot) {
     initEggGroupPage();
+} else if (window.location.pathname.includes('ability-detail.html')) {
+    loadAbilityDetail();
+} else if (window.location.pathname.includes('move-detail.html')) {
+    loadMoveDetail();
 } else {
     // Default landing page is the main Pokédex app (Pokémon Database.html)
     initPokedexPage();
@@ -1089,6 +1589,14 @@ function renderPokemonDetail(p, species, evo, allForms = []) {
     const flavorTextEntry = species.flavor_text_entries.find(f => f.language.name === 'en');
     const flavorText = flavorTextEntry ? flavorTextEntry.flavor_text.replace(/\f/g, ' ') : 'No description available.';
 
+    // Dex entries (grouped by generation)
+    const dexEntriesSectionHtml = renderDexEntriesSectionHtml(species);
+
+    // Learnset (moves by generation/version group)
+    const learnsetKeyMain = `learnset-${p.id}`;
+    learnsetStore[learnsetKeyMain] = buildLearnsetData(p);
+    const learnsetSectionHtmlMain = renderLearnsetSectionHtml(p, learnsetKeyMain);
+
     // Stats Calculation
     const statsHtml = p.stats.map(s => {
         const val = s.base_stat;
@@ -1130,15 +1638,12 @@ function renderPokemonDetail(p, species, evo, allForms = []) {
     const defenses = calculateTypeDefenses(p.types);
     const defenseHtml = renderTypeDefenses(defenses);
 
-    // Evolution
-    const evoHtml = renderEvolutionChain(evo.chain);
-
     // Data Helpers
     const genus = species.genera.find(g => g.language.name === 'en')?.genus || '';
     const heightM = p.height / 10;
     const weightKg = p.weight / 10;
     const abilities = p.abilities.map(a => 
-        `${a.is_hidden ? '<small class="text-muted">' : ''}${a.slot}. <a href="#" style="color:#3bd5ff;text-decoration:none">${a.ability.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</a>${a.is_hidden ? ' (hidden ability)</small>' : ''}`
+        `${a.is_hidden ? '<small class="text-muted">' : ''}${a.slot}. <a href="ability-detail.html?ability=${a.ability.name}" style="color:#3bd5ff;text-decoration:none">${a.ability.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</a>${a.is_hidden ? ' (hidden ability)</small>' : ''}`
     ).join('<br>');
     
     // Training Data
@@ -1217,21 +1722,47 @@ function renderPokemonDetail(p, species, evo, allForms = []) {
             ${formsTabsHtml}
         </div>
 
-        <div id="formContent0">${renderFormContent(p, species, evo, genus, localDexHtml, catchRate, baseExp, growthRate, baseFriendship, friendshipDesc, evYield, eggGroups, genderText, eggCycles, steps, abilities, heightM, weightKg, flavorText, statsHtml, defenseHtml, evoHtml)}</div>
+        <div id="formContent0"></div>
         ${relevantForms.map((form, idx) => {
-            // Calculate form-specific data
+            return `<div id="formContent${idx + 1}" style="display:none"></div>`;
+        }).join('')}
+    `;
+    
+    // Render form content asynchronously
+    async function renderFormContentAsync() {
+        // Render main form
+        const evoHtml = await renderEvolutionChain(evo.chain);
+        const mainContent = renderFormContent(p, species, evo, genus, localDexHtml, catchRate, baseExp, growthRate, baseFriendship, friendshipDesc, evYield, eggGroups, genderText, eggCycles, steps, abilities, heightM, weightKg, flavorText, dexEntriesSectionHtml, statsHtml, defenseHtml, evoHtml, learnsetSectionHtmlMain);
+        const mainRoot = document.getElementById('formContent0');
+        mainRoot.innerHTML = mainContent;
+        setupDexEntryTabs(mainRoot);
+        setupLearnsetSection(mainRoot);
+        
+        // Render alternate forms
+        relevantForms.forEach((form, idx) => {
             const formAbilities = form.abilities.map(a => 
-                `${a.is_hidden ? '<small class="text-muted">' : ''}${a.slot}. <a href="#" style="color:#3bd5ff;text-decoration:none">${a.ability.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</a>${a.is_hidden ? ' (hidden ability)</small>' : ''}`
+                `${a.is_hidden ? '<small class="text-muted">' : ''}${a.slot}. <a href="ability-detail.html?ability=${a.ability.name}" style="color:#3bd5ff;text-decoration:none">${a.ability.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</a>${a.is_hidden ? ' (hidden ability)</small>' : ''}`
             ).join('<br>');
             const formEvYield = form.stats.filter(s => s.effort > 0).map(s => `${s.effort} ${formatStatName(s.stat.name)}`).join(', ') || 'None';
             const formStatsHtml = renderStatsForForm(form);
             const formDefenseHtml = renderTypeDefenses(calculateTypeDefenses(form.types));
             const formHeightM = form.height / 10;
             const formWeightKg = form.weight / 10;
+
+            const learnsetKey = `learnset-${form.id}`;
+            learnsetStore[learnsetKey] = buildLearnsetData(form);
+            const learnsetSectionHtml = renderLearnsetSectionHtml(form, learnsetKey);
             
-            return `<div id="formContent${idx + 1}" style="display:none">${renderFormContent(form, species, evo, genus, localDexHtml, catchRate, form.base_experience || baseExp, growthRate, baseFriendship, friendshipDesc, formEvYield, eggGroups, genderText, eggCycles, steps, formAbilities, formHeightM, formWeightKg, flavorText, formStatsHtml, formDefenseHtml, evoHtml)}</div>`;
-        }).join('')}
-    `;
+            const formContent = renderFormContent(form, species, evo, genus, localDexHtml, catchRate, form.base_experience || baseExp, growthRate, baseFriendship, friendshipDesc, formEvYield, eggGroups, genderText, eggCycles, steps, formAbilities, formHeightM, formWeightKg, flavorText, dexEntriesSectionHtml, formStatsHtml, formDefenseHtml, evoHtml, learnsetSectionHtml);
+            const formRoot = document.getElementById(`formContent${idx + 1}`);
+            formRoot.innerHTML = formContent;
+            setupDexEntryTabs(formRoot);
+            setupLearnsetSection(formRoot);
+        });
+    }
+    
+    // Call async function
+    renderFormContentAsync().catch(err => console.error('Error rendering form content:', err));
     
     // Add click handlers for tabs
     document.querySelectorAll('.tab').forEach(tab => {
@@ -1314,7 +1845,7 @@ function renderStatsForForm(form) {
     }).join('');
 }
 
-function renderFormContent(p, species, evo, genus, localDexHtml, catchRate, baseExp, growthRate, baseFriendship, friendshipDesc, evYield, eggGroups, genderText, eggCycles, steps, abilities, heightM, weightKg, flavorText, statsHtml, defenseHtml, evoHtml) {
+function renderFormContent(p, species, evo, genus, localDexHtml, catchRate, baseExp, growthRate, baseFriendship, friendshipDesc, evYield, eggGroups, genderText, eggCycles, steps, abilities, heightM, weightKg, flavorText, dexEntriesSectionHtml, statsHtml, defenseHtml, evoHtml, learnsetSectionHtml) {
     // Get the best available image for this form
     let imageUrl = p.sprites.other?.['official-artwork']?.front_default;
     
@@ -1430,6 +1961,8 @@ function renderFormContent(p, species, evo, genus, localDexHtml, catchRate, base
             </div>
         </div>
 
+        ${dexEntriesSectionHtml}
+
         <div class="detail-grid" style="grid-template-columns: 1.2fr 0.8fr;">
             <div>
                 <h3 class="section-header">Base stats</h3>
@@ -1462,6 +1995,8 @@ function renderFormContent(p, species, evo, genus, localDexHtml, catchRate, base
                 ${evoHtml}
             </div>
         </div>
+
+        ${learnsetSectionHtml}
     `;
 }
 
@@ -1513,28 +2048,390 @@ function renderTypeDefenses(multipliers) {
 }
 
 function renderEvolutionChain(chain) {
-    let html = '';
-    let current = chain;
+    if (!chain) return '<div style="color: #8b92a5;">No evolution data available</div>';
     
-    while (current) {
-        const speciesName = current.species.name;
-        const speciesId = current.species.url.split('/').filter(Boolean).pop();
+    // Check if this is Eevee (species ID 133) - special radial layout
+    const rootSpeciesId = chain.species.url.split('/').filter(Boolean).pop();
+    const isEeveeChain = rootSpeciesId === '133';
+    
+    // Helper function to get evolution trigger text
+    function getEvolutionDetails(evolutionDetails) {
+        if (!evolutionDetails || evolutionDetails.length === 0) return '';
         
-        html += `
-            <div class="evo-stage" onclick="window.location.href='pokemon.html?id=${speciesId}'" style="cursor: pointer;">
-                <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${speciesId}.png" alt="${speciesName}" class="evo-img">
-                <div class="evo-name">${speciesName.charAt(0).toUpperCase() + speciesName.slice(1)}</div>
+        // Collect all unique methods
+        const methods = [];
+        
+        for (const detail of evolutionDetails) {
+            if (!detail.trigger) continue;
+            
+            const trigger = detail.trigger.name;
+            let methodText = '';
+            
+            if (trigger === 'use-item') {
+                if (detail.item) {
+                    const itemName = detail.item.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    methodText = `Use ${itemName}`;
+                }
+            } else if (trigger === 'level-up') {
+                // Build condition text based on what's present
+                if (detail.min_level) {
+                    methodText = `Level ${detail.min_level}`;
+                } else if (detail.min_happiness) {
+                    methodText = `High Friendship`;
+                    // Add time of day if present
+                    if (detail.time_of_day) {
+                        methodText += ` (${detail.time_of_day})`;
+                    }
+                } else if (detail.min_affection) {
+                    methodText = `High Affection`;
+                    // Check for known move type (Fairy-type for Sylveon)
+                    if (detail.known_move_type) {
+                        const typeName = detail.known_move_type.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                        methodText += ` + ${typeName} move`;
+                    } else if (detail.known_move) {
+                        const moveName = detail.known_move.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                        methodText += ` + ${moveName}`;
+                    }
+                } else if (detail.min_beauty) {
+                    methodText = `Beauty ${detail.min_beauty}+`;
+                } else if (detail.time_of_day && !detail.min_happiness) {
+                    methodText = `Level up (${detail.time_of_day})`;
+                } else if (detail.location) {
+                    const locName = detail.location.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    methodText = `Near ${locName}`;
+                } else if (detail.known_move) {
+                    const moveName = detail.known_move.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    methodText = `Level up with ${moveName}`;
+                } else if (detail.known_move_type && !detail.min_affection) {
+                    const typeName = detail.known_move_type.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    methodText = `Level up with ${typeName} move`;
+                } else if (detail.needs_overworld_rain) {
+                    methodText = 'Level up during rain';
+                } else if (detail.turn_upside_down) {
+                    methodText = 'Turn upside down';
+                } else {
+                    methodText = 'Level up';
+                }
+                
+                // Add additional condition modifiers
+                if (detail.gender && detail.gender === 1) methodText += ', Female';
+                if (detail.gender && detail.gender === 2) methodText += ', Male';
+                if (detail.relative_physical_stats === 1) methodText += ', Atk > Def';
+                if (detail.relative_physical_stats === -1) methodText += ', Def > Atk';
+                if (detail.relative_physical_stats === 0) methodText += ', Atk = Def';
+                if (detail.party_species) {
+                    const speciesName = detail.party_species.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    methodText += `, with ${speciesName}`;
+                }
+                if (detail.party_type) {
+                    const typeName = detail.party_type.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    methodText += `, with ${typeName} type`;
+                }
+            } else if (trigger === 'trade') {
+                if (detail.held_item) {
+                    const itemName = detail.held_item.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    methodText = `Trade holding ${itemName}`;
+                } else if (detail.trade_species) {
+                    const speciesName = detail.trade_species.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    methodText = `Trade for ${speciesName}`;
+                } else {
+                    methodText = 'Trade';
+                }
+            } else if (trigger === 'shed') {
+                methodText = 'Level 20, empty slot';
+            } else if (trigger === 'spin') {
+                methodText = 'Spin with Sweet';
+            } else if (trigger === 'tower-of-darkness') {
+                methodText = 'Tower of Darkness';
+            } else if (trigger === 'tower-of-waters') {
+                methodText = 'Tower of Waters';
+            } else if (trigger === 'three-critical-hits') {
+                methodText = '3 critical hits';
+            } else if (trigger === 'take-damage') {
+                methodText = 'Take 49+ damage';
+            } else if (trigger === 'agile-style-move') {
+                methodText = 'Agile Style 20x';
+            } else if (trigger === 'strong-style-move') {
+                methodText = 'Strong Style 20x';
+            } else if (trigger === 'recoil-damage') {
+                methodText = '294+ recoil damage';
+            }
+            
+            if (methodText && !methods.includes(methodText)) {
+                methods.push(methodText);
+            }
+        }
+        
+        // Join multiple methods with "or"
+        return methods.length > 0 ? `(${methods.join(' or ')})` : '';
+    }
+    
+    // Helper to check if this is a regional variant form
+    function isRegionalVariant(speciesName) {
+        const lowerName = speciesName.toLowerCase();
+        return lowerName.includes('-') && (
+            lowerName.includes('alola') || 
+            lowerName.includes('galar') || 
+            lowerName.includes('hisui') ||
+            lowerName.includes('paldea')
+        );
+    }
+    
+    // Get regional form prefix if exists
+    function getRegionalPrefix(speciesName) {
+        const lower = speciesName.toLowerCase();
+        if (lower.includes('alola')) return 'Alolan';
+        if (lower.includes('galar')) return 'Galarian';
+        if (lower.includes('hisui')) return 'Hisuian';
+        if (lower.includes('paldea')) return 'Paldean';
+        return '';
+    }
+    
+    // Recursive function to render evolution tree with detailed cards
+    async function renderNode(node, isRoot = false, renderChildren = true) {
+        const speciesName = node.species.name;
+        const speciesId = node.species.url.split('/').filter(Boolean).pop();
+        const displayName = speciesName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        const regionalPrefix = getRegionalPrefix(speciesName);
+        
+        // Fetch Pokemon details for types
+        let pokemonData = pokemonDetailsCache[speciesId];
+        if (!pokemonData) {
+            try {
+                const response = await fetch(`${API}/pokemon/${speciesId}`);
+                pokemonData = await response.json();
+                pokemonDetailsCache[speciesId] = pokemonData;
+            } catch (e) {
+                console.error(`Error fetching pokemon ${speciesId}:`, e);
+            }
+        }
+        
+
+        
+        const typesHtml = pokemonData && pokemonData.types ? pokemonData.types.map(t => {
+            const typeName = t.type.name;
+            return `<span class="evo-type-badge" style="background: ${TYPE_COLORS[typeName]}">${typeName}</span>`;
+        }).join(' · ') : '';
+        
+        let html = `
+            <div class="evo-pokemon-card">
+                <div class="evo-card" onclick="window.location.href='pokemon.html?id=${speciesId}'" style="cursor: pointer;">
+                    <div class="evo-card-image">
+                        <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${speciesId}.png" alt="${displayName}" class="evo-card-img" onerror="this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${speciesId}.png'">
+                    </div>
+                    <div class="evo-card-number">#${String(speciesId).padStart(4, '0')}</div>
+                    <div class="evo-card-name">${displayName}</div>
+                    ${regionalPrefix ? `<div class="evo-card-variant">${regionalPrefix}</div>` : ''}
+                    <div class="evo-card-types">${typesHtml}</div>
+                </div>
             </div>
         `;
         
-        if (current.evolves_to.length > 0) {
-            html += `<div class="evo-arrow">→</div>`;
-            current = current.evolves_to[0]; 
-        } else {
-            current = null;
+        if ((node.evolves_to && node.evolves_to.length > 0)) {
+            if (renderChildren) {
+                // Collect all evolutions including regional variants
+                const allEvolutions = [];
+                
+                for (const evolution of (node.evolves_to || [])) {
+                    const method = getEvolutionDetails(evolution.evolution_details);
+                    allEvolutions.push({
+                        node: evolution,
+                        method: method,
+                        isVariant: false
+                    });
+                    
+                    // Check if this evolution has regional variants
+                    const evolvedSpeciesName = evolution.species.name;
+                    if (!isRegionalVariant(evolvedSpeciesName)) {
+                        try {
+                            const speciesResponse = await fetch(evolution.species.url);
+                            const speciesData = await speciesResponse.json();
+                            
+                            // Check all varieties for regional forms
+                            if (speciesData.varieties && speciesData.varieties.length > 1) {
+                                for (const variety of speciesData.varieties) {
+                                    const varietyName = variety.pokemon.name;
+                                    if (isRegionalVariant(varietyName) && varietyName !== evolvedSpeciesName) {
+                                        // Create a variant evolution entry
+                                        allEvolutions.push({
+                                            variantName: varietyName,
+                                            method: method,
+                                            isVariant: true,
+                                            baseEvolution: evolution
+                                        });
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            console.error(`Error fetching species data for ${evolvedSpeciesName}:`, e);
+                        }
+                    }
+                }
+                
+                const totalEvolutions = allEvolutions.length;
+                
+                // If multiple evolutions, use vertical branching layout
+                if (totalEvolutions > 1) {
+                    html += '<div class="evo-branches-vertical">';
+                    
+                    for (const evo of allEvolutions) {
+                        if (evo.isVariant) {
+                            // Render regional variant
+                            try {
+                                const variantResponse = await fetch(`${API}/pokemon/${evo.variantName}`);
+                                const variantData = await variantResponse.json();
+                                const variantId = variantData.id;
+                                const variantDisplayName = evo.variantName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                                const variantPrefix = getRegionalPrefix(evo.variantName);
+                                
+                                const variantTypesHtml = variantData.types.map(t => {
+                                    const typeName = t.type.name;
+                                    return `<span class="evo-type-badge" style="background: ${TYPE_COLORS[typeName]}">${typeName}</span>`;
+                                }).join(' · ');
+                                
+                                html += `
+                                    <div class="evo-branch-row">
+                                        <div class="evo-arrow-container evo-arrow-variant">
+                                            <div class="evo-arrow-symbol">↘</div>
+                                            ${evo.method ? `<div class="evo-method">${evo.method}, in Legends: Arceus</div>` : '<div class="evo-method">(in Legends: Arceus)</div>'}
+                                        </div>
+                                        <div class="evo-pokemon-card">
+                                            <div class="evo-card" onclick="window.location.href='pokemon.html?id=${variantId}'" style="cursor: pointer;">
+                                                <div class="evo-card-image">
+                                                    <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${variantId}.png" alt="${variantDisplayName}" class="evo-card-img" onerror="this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${variantId}.png'">
+                                                </div>
+                                                <div class="evo-card-number">#${String(variantId).padStart(4, '0')}</div>
+                                                <div class="evo-card-name">${variantDisplayName}</div>
+                                                <div class="evo-card-variant">${variantPrefix}</div>
+                                                <div class="evo-card-types">${variantTypesHtml}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            } catch (e) {
+                                console.error(`Error fetching variant ${evo.variantName}:`, e);
+                            }
+                        } else {
+                            // Render normal evolution
+                            html += `
+                                <div class="evo-branch-row">
+                                    <div class="evo-arrow-container">
+                                        <div class="evo-arrow-symbol">↗</div>
+                                        ${evo.method ? `<div class="evo-method">${evo.method}</div>` : ''}
+                                    </div>
+                                    ${await renderNode(evo.node, false)}
+                                </div>
+                            `;
+                        }
+                    }
+                    
+                    html += '</div>';
+                } else {
+                    // Single evolution - use horizontal layout
+                    html += '<div class="evo-branches-grid">';
+                    
+                    const evo = allEvolutions[0];
+                    html += `
+                        <div class="evo-arrow-container">
+                            <div class="evo-arrow-symbol">→</div>
+                            ${evo.method ? `<div class="evo-method">${evo.method}</div>` : ''}
+                        </div>
+                        ${await renderNode(evo.node, false)}
+                    `;
+                    
+                    html += '</div>';
+                }
+            }
         }
+        
+        return html;
     }
-    return html;
+    
+    // Special layout for Eevee - center with evolutions around (radial)
+    if (isEeveeChain) {
+        return new Promise(async (resolve) => {
+            const eeveeHtml = await renderNode(chain, true, false);
+
+            const evolutions = chain.evolves_to || [];
+            const evolutionCards = [];
+
+            for (const evolution of evolutions) {
+                const method = getEvolutionDetails(evolution.evolution_details);
+                const card = await renderNode(evolution, false, false);
+                evolutionCards.push({ html: card, method });
+            }
+
+            // Layout tuning (percent-based for responsiveness)
+            const n = Math.max(evolutionCards.length, 1);
+            const radiusPct = 39;        // where cards sit
+            const arrowEndPct = 28;      // where arrow head sits (before card)
+            const arrowStartPct = 16;    // where arrow starts (outside center card)
+            const labelPerpPct = 3;      // nudge labels off the arrow line
+
+            // Build SVG arrows + HTML positioned cards/labels
+            let svgLines = '';
+            let cardsHtml = '';
+            let labelsHtml = '';
+
+            for (let i = 0; i < evolutionCards.length; i++) {
+                const angle = (-Math.PI / 2) + (2 * Math.PI * i) / n;
+                const dx = Math.cos(angle);
+                const dy = Math.sin(angle);
+
+                const cardLeft = 50 + radiusPct * dx;
+                const cardTop = 50 + radiusPct * dy;
+
+                const startLeft = 50 + arrowStartPct * dx;
+                const startTop = 50 + arrowStartPct * dy;
+                const endLeft = 50 + arrowEndPct * dx;
+                const endTop = 50 + arrowEndPct * dy;
+
+                // SVG is 0..1000 so 1% == 10 units
+                const x1 = startLeft * 10;
+                const y1 = startTop * 10;
+                const x2 = endLeft * 10;
+                const y2 = endTop * 10;
+
+                svgLines += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="evo-eevee-arrow-line" marker-end="url(#evoArrow)" />`;
+
+                cardsHtml += `<div class="evo-eevee-item" style="--left:${cardLeft}%;--top:${cardTop}%;">${evolutionCards[i].html}</div>`;
+
+                if (evolutionCards[i].method) {
+                    // Put the label at the midpoint of the arrow, slightly offset perpendicular to the line.
+                    const midLeft = (startLeft + endLeft) / 2;
+                    const midTop = (startTop + endTop) / 2;
+                    // Perpendicular unit vector to (dx, dy) is (-dy, dx)
+                    const labelLeft = midLeft + (labelPerpPct * -dy);
+                    const labelTop = midTop + (labelPerpPct * dx);
+                    labelsHtml += `<div class="evo-method evo-eevee-label" style="--left:${labelLeft}%;--top:${labelTop}%;">${evolutionCards[i].method}</div>`;
+                }
+            }
+
+            const radialHtml = `
+                <div class="evo-eevee-radial">
+                    <svg class="evo-eevee-radial-svg" viewBox="0 0 1000 1000" aria-hidden="true" focusable="false">
+                        <defs>
+                            <marker id="evoArrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+                                <path d="M 0 0 L 8 4 L 0 8 z" class="evo-eevee-arrow-head" />
+                            </marker>
+                        </defs>
+                        ${svgLines}
+                    </svg>
+                    <div class="evo-eevee-center">${eeveeHtml}</div>
+                    ${labelsHtml}
+                    ${cardsHtml}
+                </div>
+            `;
+
+            resolve(`<div class="evo-chain-container">${radialHtml}</div>`);
+        });
+    }
+    
+    // Use async IIFE to handle async rendering
+    return new Promise(async (resolve) => {
+        const html = await renderNode(chain, true);
+        resolve(`<div class="evo-chain-container">${html}</div>`);
+    });
 }
 
 // Egg Group Page Logic
@@ -1965,27 +2862,30 @@ if (window.location.pathname.includes('abilities.html') || document.getElementBy
 // ========== Ability Detail Page ==========
 async function loadAbilityDetail() {
     const urlParams = new URLSearchParams(window.location.search);
-    const abilityName = urlParams.get('ability');
+    const abilityParam = urlParams.get('ability');
     
-    if (!abilityName) {
-        document.querySelector('.container').innerHTML = '<p style="color: #ff4444;">No ability specified</p>';
+    if (!abilityParam) {
+        const container = document.querySelector('.container');
+        if (container) container.innerHTML = '<p style="color: #ff4444;">No ability specified</p>';
         return;
     }
 
     try {
         // Fetch ability data
-        const response = await fetch(`${API}/ability/${abilityName}`);
+        const response = await fetch(`${API}/ability/${abilityParam}`);
         const ability = await response.json();
         
         // Update title
         const displayName = ability.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        document.getElementById('abilityTitle').textContent = `${displayName} (ability)`;
+        const titleEl = document.getElementById('abilityTitle');
+        if (titleEl) titleEl.textContent = `${displayName} (ability)`;
         document.title = `${displayName} - Pokémon Database`;
         
         // Get English effect
         const effectEntry = ability.effect_entries.find(e => e.language.name === 'en');
         const effect = effectEntry ? effectEntry.effect : 'No description available';
-        document.getElementById('effectText').textContent = effect;
+        const effectText = document.getElementById('effectText');
+        if (effectText) effectText.textContent = effect;
         
         // Get game descriptions
         const gameDescDiv = document.getElementById('gameDescriptions');
@@ -2001,18 +2901,20 @@ async function loadAbilityDetail() {
             }
         });
         
-        if (Object.keys(gameDescsByGame).length > 0) {
-            const gameDescHtml = Object.entries(gameDescsByGame)
-                .map(([game, text]) => `
-                    <div class="game-desc-item">
-                        <div class="game-desc-game">${game.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>
-                        <div class="game-desc-text">${text}</div>
-                    </div>
-                `)
-                .join('');
-            gameDescDiv.innerHTML = gameDescHtml;
-        } else {
-            gameDescDiv.innerHTML = '<p style="color: #8b92a5;">No game descriptions available</p>';
+        if (gameDescDiv) {
+            if (Object.keys(gameDescsByGame).length > 0) {
+                const gameDescHtml = Object.entries(gameDescsByGame)
+                    .map(([game, text]) => `
+                        <div class="game-desc-item">
+                            <div class="game-desc-game">${game.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>
+                            <div class="game-desc-text">${text}</div>
+                        </div>
+                    `)
+                    .join('');
+                gameDescDiv.innerHTML = gameDescHtml;
+            } else {
+                gameDescDiv.innerHTML = '<p style="color: #8b92a5;">No game descriptions available</p>';
+            }
         }
         
         // Get other languages
@@ -2025,58 +2927,420 @@ async function loadAbilityDetail() {
             }
         });
         
-        if (Object.keys(languages).length > 0) {
-            const langHtml = Object.entries(languages)
-                .map(([lang, name]) => `
-                    <div class="lang-row">
-                        <div class="lang-label">${lang.charAt(0).toUpperCase() + lang.slice(1)}</div>
-                        <div class="lang-value">${name}</div>
-                    </div>
-                `)
-                .join('');
-            langDiv.innerHTML = langHtml;
-        } else {
-            langDiv.innerHTML = '<p style="color: #8b92a5;">No translations available</p>';
+        if (langDiv) {
+            if (Object.keys(languages).length > 0) {
+                const langHtml = Object.entries(languages)
+                    .map(([lang, name]) => `
+                        <div class="lang-row">
+                            <div class="lang-label">${lang.charAt(0).toUpperCase() + lang.slice(1)}</div>
+                            <div class="lang-value">${name}</div>
+                        </div>
+                    `)
+                    .join('');
+                langDiv.innerHTML = langHtml;
+            } else {
+                langDiv.innerHTML = '<p style="color: #8b92a5;">No translations available</p>';
+            }
         }
         
         // Get Pokémon with this ability
         const pokemonDiv = document.getElementById('pokemonWithAbility');
+        const hiddenPokemonDiv = document.getElementById('pokemonWithHiddenAbility');
+        const hiddenSection = document.getElementById('hiddenAbilitySection');
+        const regularTitle = document.getElementById('regularAbilityTitle');
+        const hiddenTitle = document.getElementById('hiddenAbilityTitle');
+        
+        if (!pokemonDiv) {
+            console.error('pokemonWithAbility element not found');
+            return;
+        }
+        
+        const abilityName = ability.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        
         const pokemonList = ability.pokemon || [];
         
         if (pokemonList.length > 0) {
             // Fetch Pokémon details
-            const pokemonPromises = pokemonList.slice(0, 50).map(async p => {
-                const pokeResponse = await fetch(p.pokemon.url);
-                return pokeResponse.json();
+            const pokemonPromises = pokemonList.slice(0, 100).map(async p => {
+                try {
+                    const pokeResponse = await fetch(p.pokemon.url);
+                    const pokeData = await pokeResponse.json();
+                    
+                    // Check if this ability is hidden for this Pokémon
+                    const abilityInfo = pokeData.abilities.find(a => a.ability.name === ability.name);
+                    return {
+                        ...pokeData,
+                        isHidden: abilityInfo?.is_hidden || false
+                    };
+                } catch (e) {
+                    console.error('Error fetching pokemon:', e);
+                    return null;
+                }
             });
             
-            const pokemonData = await Promise.all(pokemonPromises);
+            const pokemonData = (await Promise.all(pokemonPromises)).filter(p => p !== null);
             
-            const pokemonHtml = pokemonData.map(poke => `
-                <a href="pokemon.html?id=${poke.id}" class="pokemon-card-ability" onclick="return true;">
-                    <div class="pokemon-img-ability">
-                        <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${poke.id}.png" alt="${poke.name}" onerror="this.style.display='none';">
-                    </div>
-                    <div class="pokemon-dex-ability">#${String(poke.id).padStart(4, '0')}</div>
-                    <a href="pokemon.html?id=${poke.id}" class="pokemon-name-ability" onclick="event.preventDefault(); window.location.href='pokemon.html?id=${poke.id}'">${poke.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</a>
-                    <div class="pokemon-species-ability">${poke.types.map(t => t.type.name).join('/')}</div>
-                </a>
-            `).join('');
+            // Split into regular and hidden
+            const regularPokemon = pokemonData.filter(p => !p.isHidden);
+            const hiddenPokemon = pokemonData.filter(p => p.isHidden);
             
-            pokemonDiv.innerHTML = pokemonHtml || '<p class="loading-placeholder">No Pokémon found</p>';
+            // Render regular Pokémon
+            if (regularPokemon.length > 0) {
+                if (regularTitle) regularTitle.textContent = `Pokémon with ${abilityName}`;
+                const regularHtml = regularPokemon.map(poke => {
+                    const typeTags = poke.types.map(t => {
+                        const typeName = t.type.name;
+                        const typeColor = TYPE_COLORS[typeName] || '#777';
+                        return `<span class="pokemon-type-tag" style="background: ${typeColor}">${typeName}</span>`;
+                    }).join('');
+                    
+                    return `
+                    <a href="pokemon.html?id=${poke.id}" class="pokemon-card-ability">
+                        <div class="pokemon-card-header">
+                            <div class="pokemon-name-ability">${poke.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>
+                            <div class="pokemon-dex-ability">#${String(poke.id).padStart(4, '0')}</div>
+                        </div>
+                        <div class="pokemon-img-ability">
+                            <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${poke.id}.png" alt="${poke.name}" onerror="this.style.display='none';">
+                        </div>
+                        <div class="pokemon-species-ability">${typeTags}</div>
+                    </a>
+                `;
+                }).join('');
+                pokemonDiv.innerHTML = regularHtml;
+            } else {
+                pokemonDiv.innerHTML = '<p class="loading-placeholder">No Pokémon with this ability</p>';
+            }
+            
+            // Render hidden ability Pokémon
+            if (hiddenPokemon.length > 0 && hiddenPokemonDiv && hiddenSection) {
+                hiddenSection.style.display = 'block';
+                if (hiddenTitle) hiddenTitle.textContent = `${abilityName} as a hidden ability`;
+                const hiddenHtml = hiddenPokemon.map(poke => {
+                    const typeTags = poke.types.map(t => {
+                        const typeName = t.type.name;
+                        const typeColor = TYPE_COLORS[typeName] || '#777';
+                        return `<span class="pokemon-type-tag" style="background: ${typeColor}">${typeName}</span>`;
+                    }).join('');
+                    
+                    return `
+                    <a href="pokemon.html?id=${poke.id}" class="pokemon-card-ability">
+                        <div class="pokemon-card-header">
+                            <div class="pokemon-name-ability">${poke.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>
+                            <div class="pokemon-dex-ability">#${String(poke.id).padStart(4, '0')}</div>
+                        </div>
+                        <div class="pokemon-img-ability">
+                            <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${poke.id}.png" alt="${poke.name}" onerror="this.style.display='none';">
+                        </div>
+                        <div class="pokemon-species-ability">${typeTags}</div>
+                    </a>
+                `;
+                }).join('');
+                hiddenPokemonDiv.innerHTML = hiddenHtml;
+            } else if (hiddenSection) {
+                hiddenSection.style.display = 'none';
+            }
         } else {
             pokemonDiv.innerHTML = '<p class="loading-placeholder">No Pokémon with this ability</p>';
         }
         
     } catch (error) {
         console.error('Error loading ability detail:', error);
-        document.querySelector('.container').innerHTML = '<p style="color: #ff4444;">Error loading ability details. Please try again.</p>';
+        const titleEl = document.getElementById('abilityTitle');
+        const container = document.querySelector('.ability-two-column') || document.querySelector('.container');
+        if (titleEl) titleEl.textContent = 'Error';
+        if (container) {
+            container.innerHTML = '<div class="detail-section"><p style="color: #ff4444;">Error loading ability details. Please check the console for more information.</p></div>';
+        }
+    }
+}
+// Initialize ability detail page if on that page
+// (Ability detail init is handled by the dynamic page router above)
+
+// ========== Move Detail Page ==========
+async function loadMoveDetail() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const moveParam = urlParams.get('move');
+
+    if (!moveParam) {
+        const container = document.querySelector('.container');
+        if (container) container.innerHTML = '<p style="color: #ff4444;">No move specified</p>';
+        return;
+    }
+
+    const titleEl = document.getElementById('moveTitle');
+    const chipsEl = document.getElementById('moveChips');
+    const dataEl = document.getElementById('moveDataTable');
+    const effectEl = document.getElementById('moveEffectText');
+    const gameEl = document.getElementById('moveGameDescriptions');
+    const langsEl = document.getElementById('moveOtherLanguages');
+    const learnedTitleEl = document.getElementById('learnedByTitle');
+    const learnedNoteEl = document.getElementById('learnedByNote');
+    const learnedByLevelUpTitleEl = document.getElementById('learnedByLevelUpTitle');
+    const learnedByBreedingTitleEl = document.getElementById('learnedByBreedingTitle');
+    const learnedByLevelUpEl = document.getElementById('learnedByLevelUp');
+    const learnedByBreedingEl = document.getElementById('learnedByBreeding');
+
+    try {
+        const response = await fetch(`${API}/move/${moveParam}`);
+        const move = await response.json();
+
+        const displayName = formatName(move.name);
+        if (titleEl) titleEl.textContent = `${displayName} (move)`;
+        document.title = `${displayName} - Pokémon Database`;
+
+        const typeName = move.type?.name;
+        const damageClass = move.damage_class?.name;
+
+        if (chipsEl) {
+            const typeChip = typeName
+                ? `<span class="type-tag" style="background:${TYPE_COLORS[typeName]}">${typeName}</span>`
+                : '';
+            const classChip = damageClass
+                ? `<span class="chip">${damageClass}</span>`
+                : '';
+            const genChip = move.generation?.name
+                ? `<span class="chip chip-subtle">${formatName(move.generation.name)}</span>`
+                : '';
+            chipsEl.innerHTML = `${typeChip}${classChip}${genChip}`;
+        }
+
+        const englishEffect = move.effect_entries?.find(e => e?.language?.name === 'en');
+        const effectText = englishEffect?.effect || englishEffect?.short_effect || 'No description available.';
+        const formattedEffect = effectText.replace(/\$effect_chance/g, move.effect_chance);
+        if (effectEl) effectEl.textContent = formattedEffect;
+
+        const dataRows = [];
+        dataRows.push(['Type', typeName ? `<span class="type-tag" style="background:${TYPE_COLORS[typeName]}; font-size: 11px; padding: 3px 8px;">${typeName}</span>` : '-']);
+        dataRows.push(['Category', damageClass ? formatName(damageClass) : '-']);
+        dataRows.push(['Power', move.power ?? '-']);
+        dataRows.push(['Accuracy', move.accuracy ?? '-']);
+        dataRows.push(['PP', move.pp ?? '-']);
+        dataRows.push(['Priority', move.priority ?? '-']);
+        dataRows.push(['Effect chance', move.effect_chance ?? '-']);
+        dataRows.push(['Target', move.target?.name ? formatName(move.target.name) : '-']);
+        dataRows.push(['Generation', move.generation?.name ? formatName(move.generation.name) : '-']);
+        dataRows.push(['Makes contact', move.meta?.contact ? 'Yes' : 'No']);
+
+        if (dataEl) {
+            dataEl.innerHTML = dataRows.map(([label, value]) => `
+                <div class="data-row">
+                    <div class="data-label">${label}</div>
+                    <div class="data-value">${value}</div>
+                </div>
+            `).join('');
+        }
+
+        // Game descriptions (flavor text)
+        if (gameEl) {
+            const entries = (move.flavor_text_entries || [])
+                .filter(e => e?.language?.name === 'en')
+                .map(e => ({
+                    game: e.version_group?.name || 'unknown',
+                    text: normalizeFlavorText(e.flavor_text)
+                }))
+                .filter(e => e.text);
+
+            const byGame = new Map();
+            for (const e of entries) {
+                if (!byGame.has(e.game)) byGame.set(e.game, e.text);
+            }
+
+            const html = [...byGame.entries()]
+                .slice(0, 16)
+                .map(([game, text]) => `
+                    <div class="game-desc-item">
+                        <div class="game-desc-game">${formatName(game)}</div>
+                        <div class="game-desc-text">${text}</div>
+                    </div>
+                `)
+                .join('');
+
+            gameEl.innerHTML = html || '<p style="color: #8b92a5;">No game descriptions available</p>';
+        }
+
+        // Other languages
+        if (langsEl) {
+            const languages = (move.names || [])
+                .filter(n => n?.language?.name && n.language.name !== 'en')
+                .slice(0, 30);
+
+            if (!languages.length) {
+                langsEl.innerHTML = '<p style="color: #8b92a5;">No translations available</p>';
+            } else {
+                langsEl.innerHTML = languages.map(n => `
+                    <div class="lang-row">
+                        <div class="lang-label">${formatName(n.language.name)}</div>
+                        <div class="lang-value">${n.name}</div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // Learned by (Level up / Breeding)
+        const learnedBy = move.learned_by_pokemon || [];
+        if (learnedTitleEl) learnedTitleEl.textContent = `Learned by (${learnedBy.length})`;
+        if (learnedNoteEl) learnedNoteEl.textContent = learnedBy.length ? 'Sorting uses Scarlet/Violet when available.' : '';
+
+        if (learnedByLevelUpEl) learnedByLevelUpEl.innerHTML = '<div class="loading">Loading...</div>';
+        if (learnedByBreedingEl) learnedByBreedingEl.innerHTML = '<div class="loading">Loading...</div>';
+
+        const preferredVersionGroup = 'scarlet-violet';
+        const learnData = await fetchMoveLearnDataForPokemonList(learnedBy, move.name, preferredVersionGroup, learnedNoteEl);
+
+        const levelUp = learnData
+            .filter(x => Number.isFinite(x.level))
+            .sort((a, b) => (a.level - b.level) || a.name.localeCompare(b.name));
+
+        const breeding = learnData
+            .filter(x => x.egg === true)
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+        if (learnedByLevelUpTitleEl) learnedByLevelUpTitleEl.textContent = `Learnt by level up (${levelUp.length})`;
+        if (learnedByBreedingTitleEl) learnedByBreedingTitleEl.textContent = `Learnt by breeding (${breeding.length})`;
+
+        if (learnedByLevelUpEl) {
+            learnedByLevelUpEl.innerHTML = levelUp.length
+                ? levelUp.map(renderLearnedCardWithLevel).join('')
+                : '<p style="color: #8b92a5;">No level-up data found.</p>';
+        }
+
+        if (learnedByBreedingEl) {
+            learnedByBreedingEl.innerHTML = breeding.length
+                ? breeding.map(renderLearnedCardNoLevel).join('')
+                : '<p style="color: #8b92a5;">No breeding data found.</p>';
+        }
+    } catch (error) {
+        console.error('Error loading move detail:', error);
+        if (titleEl) titleEl.textContent = 'Error';
+        const container = document.querySelector('.container');
+        if (container) {
+            container.innerHTML = '<div class="detail-section"><p style="color: #ff4444;">Error loading move details. Please check the console for more information.</p></div>';
+        }
     }
 }
 
-// Initialize ability detail page if on that page
-if (window.location.pathname.includes('ability-detail.html')) {
-    loadAbilityDetail();
+function getVersionGroupGen(vgName) {
+    return VERSION_GROUP_TO_GEN[vgName] || 0;
+}
+
+function pickBestVersionGroupForMoveDetails(details, preferred) {
+    if (!Array.isArray(details) || !details.length) return null;
+    if (preferred && details.some(d => d?.version_group?.name === preferred)) return preferred;
+
+    let best = null;
+    let bestGen = -1;
+    for (const d of details) {
+        const name = d?.version_group?.name;
+        if (!name) continue;
+        const gen = getVersionGroupGen(name);
+        if (gen > bestGen) {
+            bestGen = gen;
+            best = name;
+        }
+    }
+    return best;
+}
+
+function extractLearnForMove(pokemonData, moveName, preferredVersionGroup) {
+    const movesArr = pokemonData?.moves || [];
+    const entry = movesArr.find(m => m?.move?.name === moveName);
+    if (!entry) return { egg: false, level: null };
+
+    const details = entry.version_group_details || [];
+    const chosenVg = pickBestVersionGroupForMoveDetails(details, preferredVersionGroup);
+    const scoped = chosenVg ? details.filter(d => d?.version_group?.name === chosenVg) : details;
+
+    let egg = false;
+    let level = null;
+
+    for (const d of scoped) {
+        const method = d?.move_learn_method?.name;
+        if (method === 'egg') egg = true;
+        if (method === 'level-up') {
+            const lvl = d?.level_learned_at;
+            if (Number.isFinite(lvl) && (level === null || lvl < level)) level = lvl;
+        }
+    }
+
+    return { egg, level };
+}
+
+async function fetchMoveLearnDataForPokemonList(pokemonRefs, moveName, preferredVersionGroup, progressEl) {
+    const list = (pokemonRefs || [])
+        .map(p => {
+            const id = parseInt((p?.url || '').split('/').filter(Boolean).pop());
+            return {
+                id: Number.isFinite(id) ? id : null,
+                apiName: p?.name || ''
+            };
+        })
+        .filter(x => x.id !== null);
+
+    const results = [];
+    const BATCH_SIZE = 20;
+
+    for (let i = 0; i < list.length; i += BATCH_SIZE) {
+        const batch = list.slice(i, i + BATCH_SIZE);
+        if (progressEl) progressEl.textContent = `Loading learnsets… (${Math.min(i + BATCH_SIZE, list.length)}/${list.length})`;
+
+        const batchResults = await Promise.all(batch.map(async item => {
+            try {
+                const cached = pokemonDetailsCache[item.id];
+                const data = cached || await fetch(`${API}/pokemon/${item.id}`).then(r => r.json());
+                if (!cached) pokemonDetailsCache[item.id] = data;
+
+                const learn = extractLearnForMove(data, moveName, preferredVersionGroup);
+                return {
+                    id: item.id,
+                    name: formatName(item.apiName || data.name),
+                    egg: learn.egg,
+                    level: learn.level
+                };
+            } catch (e) {
+                console.error('Error fetching pokemon learnset', item, e);
+                return null;
+            }
+        }));
+
+        results.push(...batchResults.filter(Boolean));
+    }
+
+    if (progressEl) progressEl.textContent = '';
+    return results;
+}
+
+function renderLearnedCardWithLevel(p) {
+    const href = `pokemon.html?id=${p.id}`;
+    const sprite = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png`;
+    return `
+        <a class="learned-card" href="${href}">
+            <div class="learned-sprite">
+                <img src="${sprite}" alt="${p.name}" onerror="this.style.display='none'">
+            </div>
+            <div class="learned-text">
+                <div class="learned-name">${p.name}</div>
+                <div class="learned-level">Lv. ${p.level}</div>
+                <div class="learned-id">#${String(p.id).padStart(4, '0')}</div>
+            </div>
+        </a>
+    `;
+}
+
+function renderLearnedCardNoLevel(p) {
+    const href = `pokemon.html?id=${p.id}`;
+    const sprite = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png`;
+    return `
+        <a class="learned-card" href="${href}">
+            <div class="learned-sprite">
+                <img src="${sprite}" alt="${p.name}" onerror="this.style.display='none'">
+            </div>
+            <div class="learned-text">
+                <div class="learned-name">${p.name}</div>
+                <div class="learned-id">#${String(p.id).padStart(4, '0')}</div>
+            </div>
+        </a>
+    `;
 }
 
 // Image fallback handler for Pokémon forms
