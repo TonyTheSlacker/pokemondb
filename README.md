@@ -1,4 +1,4 @@
-# Pokémon Database
+# Pokémon Database(CURRENTLY UPDATING AND FIXING BUGS PLEASE DON'T CLONE THIS REPO YET)
 
 ![Language](https://img.shields.io/badge/Language-HTML5%20%2F%20CSS3%20%2F%20JavaScript-E34C26?logo=html5&logoColor=white)
 ![API](https://img.shields.io/badge/API-PokéAPI-FFCA12?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iI0ZGQ0ExMiIgZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMjAgMTAgMjAgMjAtNC40OCAyMC0xMFM0OC4yMyAyIDEyIDJ6Ii8+PC9zdmc+)
