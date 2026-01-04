@@ -132,7 +132,19 @@ async function init() {
     document.getElementById('grid').innerHTML = '<div class="loading">Loading Pokémon...</div>';
     allPokemon = await fetch(`${API}/pokemon?limit=1025`).then(r => r.json()).then(d => d.results.map((p, i) => ({ id: i + 1, name: p.name })));
     pokemon = [...allPokemon];
-    render();
+    
+    // Check for URL parameters to auto-load a specific Pokedex
+    const urlParams = new URLSearchParams(window.location.search);
+    const dexId = urlParams.get('dex');
+    const dexName = urlParams.get('dexName');
+    
+    if (dexId && dexName) {
+        // Load the specified Pokedex
+        await loadPokedex(dexId === 'all' ? 'all' : (isNaN(dexId) ? dexId : parseInt(dexId)), decodeURIComponent(dexName), null);
+    } else {
+        render();
+    }
+    
     setupTypes();
     setupDamageClasses();
 }
@@ -1058,7 +1070,9 @@ function renderPokemonDetail(p, species, evo, allForms = []) {
         return name.includes('mega') || name.includes('gmax') || name.includes('gigantamax') || 
                name.includes('alola') || name.includes('galar') || name.includes('hisui') || 
                name.includes('paldea') || name.includes('ash') || name.includes('battle-bond') ||
-               (name.includes('-') && !name.includes(baseName)); // Any hyphenated variant that's not the base
+               name.includes('origin') || name.includes('primal') || name.includes('therian') ||
+               name.includes('sky') || name.includes('black') || name.includes('white') ||
+               (name.includes('-') && name !== baseName); // Any form with a hyphen that's not exactly the base
     });
     
     // Build tabs HTML
@@ -1302,34 +1316,33 @@ function renderStatsForForm(form) {
 
 function renderFormContent(p, species, evo, genus, localDexHtml, catchRate, baseExp, growthRate, baseFriendship, friendshipDesc, evYield, eggGroups, genderText, eggCycles, steps, abilities, heightM, weightKg, flavorText, statsHtml, defenseHtml, evoHtml) {
     // Get the best available image for this form
-    // Try multiple sources in order of preference
     let imageUrl = p.sprites.other?.['official-artwork']?.front_default;
     
     if (!imageUrl) {
         imageUrl = p.sprites.other?.home?.front_default;
     }
     
+    if (!imageUrl) {
+        imageUrl = p.sprites.other?.['dream-world']?.front_default;
+    }
+    
     if (!imageUrl && p.sprites.front_default) {
         imageUrl = p.sprites.front_default;
     }
     
-    // If still no image, try to construct from the Pokémon name/id
+    // If still no image, use constructed URL
     if (!imageUrl) {
-        // For Mega forms, try different naming conventions
-        const name = p.name.toLowerCase();
-        if (name.includes('mega')) {
-            // Try with pokemon-form endpoint structure
-            imageUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.id}.png`;
-        } else {
-            imageUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.id}.png`;
-        }
+        imageUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${p.id}.png`;
     }
+    
+    // Create unique ID for this image for fallback handling
+    const imgId = `pokemon-img-${p.id}-${Date.now()}`;
     
     return `
         <div class="detail-grid">
             <div class="detail-left">
                 <div class="main-image-container">
-                    <img src="${imageUrl}" alt="${p.name}" class="main-image" onerror="this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png'">
+                    <img id="${imgId}" src="${imageUrl}" alt="${p.name}" class="main-image" onerror="handleImageError(this, ${p.id}, '${p.name}')">
                 </div>
                 <div style="padding: 15px; color: #f5f7ff; font-size: 14px; line-height: 1.6;">
                     ${flavorText}
@@ -2040,12 +2053,12 @@ async function loadAbilityDetail() {
             const pokemonData = await Promise.all(pokemonPromises);
             
             const pokemonHtml = pokemonData.map(poke => `
-                <a href="pokemon-detail.html?id=${poke.id}" class="pokemon-card-ability" onclick="return true;">
+                <a href="pokemon.html?id=${poke.id}" class="pokemon-card-ability" onclick="return true;">
                     <div class="pokemon-img-ability">
                         <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${poke.id}.png" alt="${poke.name}" onerror="this.style.display='none';">
                     </div>
                     <div class="pokemon-dex-ability">#${String(poke.id).padStart(4, '0')}</div>
-                    <a href="pokemon-detail.html?id=${poke.id}" class="pokemon-name-ability" onclick="event.preventDefault(); window.location.href='pokemon-detail.html?id=${poke.id}'">${poke.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</a>
+                    <a href="pokemon.html?id=${poke.id}" class="pokemon-name-ability" onclick="event.preventDefault(); window.location.href='pokemon.html?id=${poke.id}'">${poke.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</a>
                     <div class="pokemon-species-ability">${poke.types.map(t => t.type.name).join('/')}</div>
                 </a>
             `).join('');
@@ -2064,6 +2077,56 @@ async function loadAbilityDetail() {
 // Initialize ability detail page if on that page
 if (window.location.pathname.includes('ability-detail.html')) {
     loadAbilityDetail();
+}
+
+// Image fallback handler for Pokémon forms
+function handleImageError(imgElement, pokemonId, pokemonName) {
+    // List of fallback image sources to try
+    const fallbackSources = [
+        // Sprite repositories
+        `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${pokemonId}.png`,
+        `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/${pokemonId}.png`,
+        // PokéDB (often has good artwork)
+        `https://img.pokemondb.net/artwork/${pokemonName.toLowerCase().replace(/ /g, '-')}.jpg`,
+        // Bulbapedia
+        `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokemonId}.png`,
+        // Generic placeholder
+        `https://via.placeholder.com/200x200?text=${pokemonName}`
+    ];
+    
+    // Get the current source that failed
+    const currentSrc = imgElement.src;
+    let currentIndex = fallbackSources.indexOf(currentSrc);
+    
+    // If current source is not in the list or is the last one, mark as unavailable
+    if (currentIndex === -1 || currentIndex >= fallbackSources.length - 1) {
+        imgElement.style.opacity = '0.5';
+        imgElement.title = 'Image not available for this Pokémon form';
+        imgElement.onerror = null; // Stop trying
+        return;
+    }
+    
+    // Try the next fallback source
+    const nextSource = fallbackSources[currentIndex + 1];
+    imgElement.src = nextSource;
+}
+
+// Dynamic navigation for detail pages
+function navigateToPokedex(dexId, dexName, event) {
+    if (event) event.preventDefault();
+    
+    // Get current context (pokemon ID or ability name)
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentPage = window.location.pathname;
+    
+    // Build URL with preserved context
+    let targetUrl = 'Pokémon Database.html';
+    if (dexId !== 'all') {
+        targetUrl += `?dex=${dexId}&dexName=${encodeURIComponent(dexName)}`;
+    }
+    
+    // Navigate
+    window.location.href = targetUrl;
 }
 
 
