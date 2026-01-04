@@ -161,6 +161,94 @@ const GEN_VERSION_ORDER = {
     9: ['scarlet', 'violet', 'legends-z-a']
 };
 
+// GraphQL-Pokemon fallback (favware/graphql-pokemon)
+// Used to fill gaps where PokeAPI lacks newer dex entries / descriptions.
+const GQL_POKEMON_API = 'https://graphqlpokemon.favware.tech/v8';
+
+// Map GraphQL-Pokemon flavorTexts.game (display names) -> PokeAPI version keys
+// e.g. "Omega Ruby" -> "omega-ruby".
+const MAINLINE_LABEL_TO_VERSION = (() => {
+    const map = {};
+    for (const [versionKey, meta] of Object.entries(MAINLINE_VERSION_META)) {
+        if (meta?.label) map[meta.label] = versionKey;
+    }
+    return map;
+})();
+
+const gqlRequestCache = new Map();
+
+async function fetchGraphqlPokemon(query, variables) {
+    const cacheKey = JSON.stringify({ query, variables: variables || null });
+    if (gqlRequestCache.has(cacheKey)) return gqlRequestCache.get(cacheKey);
+
+    const p = (async () => {
+        const res = await fetch(GQL_POKEMON_API, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query, variables: variables || {} })
+        });
+
+        const json = await res.json().catch(() => null);
+        if (!res.ok) {
+            throw new Error(`GraphQL-Pokemon HTTP ${res.status}`);
+        }
+        if (json?.errors?.length) {
+            const msg = json.errors.map(e => e?.message).filter(Boolean).join('; ') || 'GraphQL error';
+            throw new Error(msg);
+        }
+        return json;
+    })();
+
+    gqlRequestCache.set(cacheKey, p);
+    return p;
+}
+
+async function fetchGraphqlDexFlavorTextsByDexNumber(dexNumber) {
+    if (!Number.isFinite(dexNumber)) return null;
+    const query = `query($n: Int!, $take: Int, $rev: Boolean){
+        getPokemonByDexNumber(number: $n, takeFlavorTexts: $take, reverseFlavorTexts: $rev){
+            num
+            species
+            flavorTexts { game flavor }
+        }
+    }`;
+    const json = await fetchGraphqlPokemon(query, { n: dexNumber, take: 50, rev: false });
+    const flavorTexts = json?.data?.getPokemonByDexNumber?.flavorTexts;
+    if (!Array.isArray(flavorTexts) || !flavorTexts.length) return null;
+
+    const byVersion = {};
+    for (const ft of flavorTexts) {
+        const game = ft?.game;
+        const text = normalizeFlavorText(ft?.flavor);
+        if (!game || !text) continue;
+        const versionKey = MAINLINE_LABEL_TO_VERSION[game];
+        if (!versionKey) continue;
+        if (!byVersion[versionKey]) byVersion[versionKey] = text;
+    }
+    return Object.keys(byVersion).length ? byVersion : null;
+}
+
+async function fetchGraphqlMoveFallback(moveQuery) {
+    if (!moveQuery) return null;
+    const query = `query($q: String!, $take: Int){
+        getFuzzyMove(move: $q, take: $take){
+            name
+            shortDesc
+            desc
+            accuracy
+            pp
+            priority
+            basePower
+            type
+            category
+        }
+    }`;
+    const json = await fetchGraphqlPokemon(query, { q: String(moveQuery), take: 1 });
+    const result = json?.data?.getFuzzyMove;
+    if (!Array.isArray(result) || !result.length) return null;
+    return result[0] || null;
+}
+
 function normalizeFlavorText(text) {
     return (text || '')
         .replace(/\f/g, ' ')
@@ -182,6 +270,18 @@ function buildDexEntriesByGeneration(species) {
         const text = normalizeFlavorText(entry.flavor_text);
         if (!text) continue;
         byVersion.set(versionName, text);
+    }
+
+    // Optional GraphQL-Pokemon fallback entries (keyed by PokeAPI version keys)
+    const gqlExtras = species?.__gqlDexByVersion;
+    if (gqlExtras && typeof gqlExtras === 'object') {
+        for (const [versionKey, textRaw] of Object.entries(gqlExtras)) {
+            if (!versionKey || byVersion.has(versionKey)) continue;
+            const text = normalizeFlavorText(textRaw);
+            if (!text) continue;
+            if (!MAINLINE_VERSION_META[versionKey]) continue;
+            byVersion.set(versionKey, text);
+        }
     }
 
     const byGen = {};
@@ -249,6 +349,7 @@ function renderDexEntriesSectionHtml(species) {
 }
 
 function setupDexEntryTabs(root) {
+
     if (!root) return;
     const tabs = root.querySelectorAll('.dex-tab');
     if (!tabs.length) return;
@@ -263,6 +364,1090 @@ function setupDexEntryTabs(root) {
             if (panel) panel.classList.add('active');
         });
     });
+}
+
+function parseDexId(raw) {
+    if (raw == null) return null;
+    if (raw === 'all') return 'all';
+    if (/^\d+$/.test(String(raw))) return parseInt(String(raw), 10);
+    return raw;
+}
+
+function setupActionDelegation() {
+    if (setupActionDelegation._installed) return;
+    setupActionDelegation._installed = true;
+
+    document.addEventListener('click', (e) => {
+        const el = e.target?.closest?.('[data-action]');
+        if (!el) return;
+
+        const action = el.dataset.action;
+        if (!action) return;
+
+        // Most of these are anchors; keep SPA-like behavior.
+        e.preventDefault();
+
+        switch (action) {
+            case 'toggle-pokedex-menu':
+                togglePokedexMenu(el);
+                return;
+            case 'toggle-egg-group-menu':
+                toggleEggGroupMenu(el);
+                return;
+            case 'load-pokedex': {
+                const id = parseDexId(el.dataset.dexId);
+                const name = el.dataset.dexName || '';
+                loadPokedex(id, name, el);
+                return;
+            }
+            case 'navigate-pokedex': {
+                const id = parseDexId(el.dataset.dexId);
+                const name = el.dataset.dexName || '';
+                navigateToPokedex(id, name);
+                return;
+            }
+            case 'switch-page':
+                switchPage(el.dataset.page, el);
+                return;
+            case 'close-modal':
+                closeModal();
+                return;
+            case 'set-type-filter':
+                setFilter(el.dataset.type, el);
+                return;
+            case 'set-damage-class-filter':
+                setDamageClassFilter(el.dataset.damageClass, el);
+                return;
+            case 'open-pokemon':
+                window.location.href = `pokemon.html?id=${el.dataset.pokemonId}`;
+                return;
+            case 'open-move':
+                moveDetail(el.dataset.moveId);
+                return;
+            case 'sort-moves':
+                sortMoves(el.dataset.field);
+                return;
+            case 'change-moves-page':
+                changeMovesPage(parseInt(el.dataset.delta || '0', 10));
+                return;
+            case 'switch-gen-tab':
+                switchGenTab(parseInt(el.dataset.gen || '0', 10));
+                return;
+            case 'filter-by-ability':
+                filterByAbility(el.dataset.ability, e);
+                return;
+            case 'clear-ability-filter':
+                init();
+                return;
+            case 'load-location':
+                loadLocationFromInput();
+                return;
+            case 'show-ability-pokemon':
+                showAbilityPokemon(el.dataset.ability);
+                return;
+            case 'sort-abilities':
+                sortAbilitiesTable(parseInt(el.dataset.sortColumn || '0', 10));
+                return;
+            default:
+                return;
+        }
+    });
+}
+
+// --- Locations page (PokeAPI location + encounters) ---
+
+const versionGroupCache = new Map(); // versionName -> versionGroupName
+const versionGenCache = new Map(); // versionName -> generationNumber
+
+const VERSION_ABBREVIATIONS = {
+    'red': 'R',
+    'blue': 'B',
+    'yellow': 'Y',
+    'gold': 'G',
+    'silver': 'S',
+    'crystal': 'C',
+    'ruby': 'R',
+    'sapphire': 'S',
+    'emerald': 'E',
+    'firered': 'FR',
+    'leafgreen': 'LG',
+    'diamond': 'D',
+    'pearl': 'P',
+    'platinum': 'Pt',
+    'heartgold': 'HG',
+    'soulsilver': 'SS',
+    'black': 'B',
+    'white': 'W',
+    'black-2': 'B2',
+    'white-2': 'W2',
+    'x': 'X',
+    'y': 'Y',
+    'omega-ruby': 'OR',
+    'alpha-sapphire': 'AS',
+    'sun': 'S',
+    'moon': 'M',
+    'ultra-sun': 'US',
+    'ultra-moon': 'UM',
+    'lets-go-pikachu': 'LGP',
+    'lets-go-eevee': 'LGE',
+    'sword': 'Sw',
+    'shield': 'Sh',
+    'brilliant-diamond': 'BD',
+    'shining-pearl': 'SP',
+    'legends-arceus': 'LA',
+    'scarlet': 'Sc',
+    'violet': 'Vi'
+};
+
+function slugToTitle(text) {
+    return String(text || '')
+        .replace(/_/g, '-')
+        .replace(/-/g, ' ')
+        .replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function parseIdFromUrl(url) {
+    try {
+        return parseInt(String(url).split('/').filter(Boolean).pop(), 10);
+    } catch {
+        return NaN;
+    }
+}
+
+async function fetchJson(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+    return res.json();
+}
+
+async function promisePool(items, concurrency, worker) {
+    const results = new Array(items.length);
+    let idx = 0;
+
+    const runners = new Array(Math.min(concurrency, items.length)).fill(0).map(async () => {
+        while (idx < items.length) {
+            const cur = idx++;
+            results[cur] = await worker(items[cur], cur);
+        }
+    });
+
+    await Promise.all(runners);
+    return results;
+}
+
+function getVersionAbbrev(versionName) {
+    const v = String(versionName || '');
+    if (VERSION_ABBREVIATIONS[v]) return VERSION_ABBREVIATIONS[v];
+    if (MAINLINE_VERSION_META[v]?.label) {
+        // e.g. "FireRed" -> "FR"
+        const label = MAINLINE_VERSION_META[v].label;
+        const caps = label.match(/[A-Z]/g);
+        if (caps && caps.length >= 2) return caps.slice(0, 3).join('');
+    }
+
+    const parts = v.split('-').filter(Boolean);
+    const abbr = parts.map(p => p[0]?.toUpperCase() || '').join('');
+    return abbr.slice(0, 3) || v.slice(0, 3).toUpperCase();
+}
+
+async function getGenerationForVersion(versionName) {
+    const v = String(versionName || '');
+    if (!v) return null;
+    if (versionGenCache.has(v)) return versionGenCache.get(v);
+
+    let versionGroup = versionGroupCache.get(v);
+    if (!versionGroup) {
+        const versionData = await fetchJson(`${API}/version/${v}`);
+        versionGroup = versionData?.version_group?.name;
+        if (versionGroup) versionGroupCache.set(v, versionGroup);
+    }
+
+    const gen = VERSION_GROUP_TO_GEN[versionGroup] || null;
+    versionGenCache.set(v, gen);
+    return gen;
+}
+
+function methodDisplay(methodName) {
+    const m = String(methodName || '');
+    const map = {
+        'walk': { title: 'Walking', subtitle: 'Walking in grass or a cave' },
+        'surf': { title: 'Surfing', subtitle: 'Surfing on water' },
+        'old-rod': { title: 'Old Rod', subtitle: 'Fishing with the Old Rod' },
+        'good-rod': { title: 'Good Rod', subtitle: 'Fishing with the Good Rod' },
+        'super-rod': { title: 'Super Rod', subtitle: 'Fishing with the Super Rod' },
+        'rock-smash': { title: 'Rock Smash', subtitle: 'Smashing breakable rocks' },
+        'headbutt': { title: 'Headbutt', subtitle: 'Headbutt large trees in the field' },
+        'gift': { title: 'Special', subtitle: 'Special encounter' },
+        'special': { title: 'Special', subtitle: 'Special encounter' }
+    };
+    if (map[m]) return map[m];
+    return { title: slugToTitle(m), subtitle: '' };
+}
+
+function formatLevelRange(minLevel, maxLevel) {
+    const min = Number(minLevel);
+    const max = Number(maxLevel);
+    if (!Number.isFinite(min) || !Number.isFinite(max)) return '-';
+    if (min === max) return String(min);
+    return `${min}-${max}`;
+}
+
+function rarityIconHtml(chance) {
+    const n = Number(chance);
+    if (!Number.isFinite(n) || n < 0) return '<span class="details-muted">-</span>';
+
+    let cls = 'rate-limited';
+    let label = 'Limited';
+    if (n >= 21) {
+        cls = 'rate-common';
+        label = 'Common (21-100%)';
+    } else if (n >= 6) {
+        cls = 'rate-uncommon';
+        label = 'Uncommon (6-20%)';
+    } else if (n >= 1) {
+        cls = 'rate-rare';
+        label = 'Rare (1-5%)';
+    }
+
+    const exact = Number.isFinite(n) ? `${n}%` : '';
+    return `<span class="rate-icon ${cls}" title="${label}${exact ? ` — ${exact}` : ''}"></span>`;
+}
+
+function extractTimeTokens(conditions) {
+    const src = Array.isArray(conditions) ? conditions : [];
+    return src
+        .map(c => String(c || ''))
+        .filter(c => c.startsWith('Time '))
+        .map(c => c.replace(/^Time\s+/, '').trim().toLowerCase());
+}
+
+function extractSeasonTokens(conditions) {
+    const src = Array.isArray(conditions) ? conditions : [];
+    return src
+        .map(c => String(c || ''))
+        .filter(c => c.startsWith('Season '))
+        .map(c => c.replace(/^Season\s+/, '').trim().toLowerCase());
+}
+
+function timeIconsHtml(conditions) {
+    const tokens = extractTimeTokens(conditions);
+    if (!tokens.length) return '<span class="details-muted">-</span>';
+
+    const uniq = Array.from(new Set(tokens));
+    const order = ['morning', 'day', 'night'];
+    uniq.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+
+    const map = {
+        morning: { cls: 'ico-morning', title: 'Morning', text: 'M' },
+        day: { cls: 'ico-day', title: 'Day', text: 'D' },
+        night: { cls: 'ico-night', title: 'Night', text: 'N' }
+    };
+
+    return uniq
+        .map(t => {
+            const m = map[t] || { cls: 'ico-generic', title: slugToTitle(t), text: (t[0] || '?').toUpperCase() };
+            return `<span class="mini-icon ${m.cls}" title="${m.title}">${m.text}</span>`;
+        })
+        .join('');
+}
+
+function seasonIconsHtml(conditions) {
+    const tokens = extractSeasonTokens(conditions);
+    if (!tokens.length) return '';
+
+    const uniq = Array.from(new Set(tokens));
+    const order = ['spring', 'summer', 'autumn', 'fall', 'winter'];
+    uniq.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+
+    const normalize = (t) => (t === 'fall' ? 'autumn' : t);
+    const map = {
+        spring: { cls: 'ico-spring', title: 'Spring', text: 'Sp' },
+        summer: { cls: 'ico-summer', title: 'Summer', text: 'Su' },
+        autumn: { cls: 'ico-autumn', title: 'Autumn', text: 'Au' },
+        winter: { cls: 'ico-winter', title: 'Winter', text: 'Wi' }
+    };
+
+    return uniq
+        .map(t => {
+            const k = normalize(t);
+            const m = map[k] || { cls: 'ico-generic', title: slugToTitle(k), text: k.slice(0, 2) };
+            return `<span class="mini-icon ${m.cls}" title="${m.title}">${m.text}</span>`;
+        })
+        .join('');
+}
+
+function shortConditionChip(label) {
+    const raw = String(label || '').trim();
+    if (!raw) return '';
+    const shortened = raw
+        .replace(/^Radio\s+/i, 'Radio ')
+        .replace(/^Slot\s+/i, '')
+        .replace(/^Swarm\s+/i, 'Swarm ');
+    return `<span class="cond-chip" title="${raw}">${shortened}</span>`;
+}
+
+function buildKeyToIconsHtml() {
+    return `
+        <div class="icon-key">
+            <div class="icon-key-title">Key to icons</div>
+            <div class="icon-key-sub">These icons are used throughout the location guide.</div>
+            <div class="icon-key-grid">
+                <div class="icon-key-col">
+                    <div class="icon-key-col-title">Times</div>
+                    <div class="icon-key-row"><span class="mini-icon ico-morning" title="Morning">M</span><span>Morning</span></div>
+                    <div class="icon-key-row"><span class="mini-icon ico-day" title="Day">D</span><span>Day</span></div>
+                    <div class="icon-key-row"><span class="mini-icon ico-night" title="Night">N</span><span>Night</span></div>
+                </div>
+                <div class="icon-key-col">
+                    <div class="icon-key-col-title">Seasons</div>
+                    <div class="icon-key-row"><span class="mini-icon ico-spring" title="Spring">Sp</span><span>Spring</span></div>
+                    <div class="icon-key-row"><span class="mini-icon ico-summer" title="Summer">Su</span><span>Summer</span></div>
+                    <div class="icon-key-row"><span class="mini-icon ico-autumn" title="Autumn">Au</span><span>Autumn</span></div>
+                    <div class="icon-key-row"><span class="mini-icon ico-winter" title="Winter">Wi</span><span>Winter</span></div>
+                </div>
+                <div class="icon-key-col">
+                    <div class="icon-key-col-title">Encounter rates</div>
+                    <div class="icon-key-row"><span class="rate-icon rate-common" title="Common (21-100%)"></span><span>Common (21-100%)</span></div>
+                    <div class="icon-key-row"><span class="rate-icon rate-uncommon" title="Uncommon (6-20%)"></span><span>Uncommon (6-20%)</span></div>
+                    <div class="icon-key-row"><span class="rate-icon rate-rare" title="Rare (1-5%)"></span><span>Rare (1-5%)</span></div>
+                    <div class="icon-key-row"><span class="rate-icon rate-limited" title="Limited"></span><span>Limited</span></div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function sortMethodKey(methodName) {
+    const order = ['walk', 'surf', 'old-rod', 'good-rod', 'super-rod', 'rock-smash', 'headbutt', 'special', 'gift'];
+    const idx = order.indexOf(methodName);
+    return idx === -1 ? 999 : idx;
+}
+
+function getLocationNameParts(locationSlug) {
+    const slug = String(locationSlug || '');
+    const parts = slug.split('-');
+    const regionCandidates = ['kanto', 'johto', 'hoenn', 'sinnoh', 'unova', 'kalos', 'alola', 'galar', 'hisui', 'paldea'];
+    const region = parts.find(p => regionCandidates.includes(p)) || '';
+    const cleaned = parts.filter(p => p !== region);
+    return {
+        region,
+        title: slugToTitle(cleaned.join('-') || slug),
+        regionTitle: region ? slugToTitle(region) : ''
+    };
+}
+
+// PokeDB encounter fallback (https://pokedb.org/data-export)
+// Used only when PokeAPI returns empty encounter tables for Gen 8/9 regions.
+const POKEDB_ENCOUNTERS_INDEX_URL = 'data/pokedb-encounters-g8g9.json';
+let pokedbEncountersIndexPromise = null;
+const pokemonIdByNameCache = new Map();
+
+// Pokemon detail: build a version -> locations map (PokeAPI encounters + PokeDB fallback)
+const whereToFindByPokemonCache = new Map();
+const locationAreaToLocationCache = new Map();
+
+const WHERE_TO_FIND_GROUPS = [
+    { gen: 1, labels: ['Red', 'Blue', 'Yellow'], versions: ['red', 'blue', 'yellow'] },
+    { gen: 2, labels: ['Gold', 'Silver', 'Crystal'], versions: ['gold', 'silver', 'crystal'] },
+    { gen: 3, labels: ['Ruby', 'Sapphire', 'Emerald'], versions: ['ruby', 'sapphire', 'emerald'] },
+    { gen: 3, labels: ['FireRed', 'LeafGreen'], versions: ['firered', 'leafgreen'] },
+    { gen: 4, labels: ['Diamond', 'Pearl', 'Platinum'], versions: ['diamond', 'pearl', 'platinum'] },
+    { gen: 4, labels: ['HeartGold', 'SoulSilver'], versions: ['heartgold', 'soulsilver'] },
+    { gen: 5, labels: ['Black', 'White'], versions: ['black', 'white'] },
+    { gen: 5, labels: ['Black 2', 'White 2'], versions: ['black-2', 'white-2'] },
+    { gen: 6, labels: ['X', 'Y'], versions: ['x', 'y'] },
+    { gen: 6, labels: ['Omega Ruby', 'Alpha Sapphire'], versions: ['omega-ruby', 'alpha-sapphire'] },
+    { gen: 7, labels: ['Sun', 'Moon'], versions: ['sun', 'moon'] },
+    { gen: 7, labels: ['Ultra Sun', 'Ultra Moon'], versions: ['ultra-sun', 'ultra-moon'] },
+    { gen: 7, labels: ["Let's Go Pikachu", "Let's Go Eevee"], versions: ['lets-go-pikachu', 'lets-go-eevee'] },
+    { gen: 8, labels: ['Sword', 'Shield'], versions: ['sword', 'shield'] },
+    { gen: 8, labels: ['Brilliant Diamond', 'Shining Pearl'], versions: ['brilliant-diamond', 'shining-pearl'] },
+    { gen: 8, labels: ['Legends: Arceus'], versions: ['legends-arceus'] },
+    { gen: 9, labels: ['Scarlet', 'Violet'], versions: ['scarlet', 'violet'] },
+    { gen: 9, labels: ['Legends: Z-A'], versions: ['legends-z-a'] }
+];
+
+function getSpeciesIntroducedGen(species) {
+    const url = species?.generation?.url;
+    const id = parseIdFromUrl(url);
+    return Number.isFinite(id) ? id : null;
+}
+
+async function getLocationForLocationAreaUrl(areaUrl) {
+    if (!areaUrl) return null;
+    if (locationAreaToLocationCache.has(areaUrl)) return locationAreaToLocationCache.get(areaUrl);
+    const p = fetchJson(areaUrl)
+        .then(d => d?.location?.name || null)
+        .catch(() => null);
+    locationAreaToLocationCache.set(areaUrl, p);
+    return p;
+}
+
+async function fetchPokeApiLocationsByVersionForPokemon(pokemonId) {
+    const out = new Map();
+    const encounters = await fetchJson(`${API}/pokemon/${pokemonId}/encounters`).catch(() => []);
+    if (!Array.isArray(encounters) || !encounters.length) return out;
+
+    const areaUrls = Array.from(
+        new Set(
+            encounters
+                .map(e => e?.location_area?.url)
+                .filter(Boolean)
+        )
+    );
+
+    const locations = await promisePool(areaUrls, 6, (u) => getLocationForLocationAreaUrl(u));
+    const areaToLocation = new Map();
+    for (let i = 0; i < areaUrls.length; i++) {
+        const loc = locations[i];
+        if (loc) areaToLocation.set(areaUrls[i], loc);
+    }
+
+    for (const e of encounters) {
+        const areaUrl = e?.location_area?.url;
+        const loc = areaToLocation.get(areaUrl);
+        if (!loc) continue;
+
+        for (const vd of (e?.version_details || [])) {
+            const version = vd?.version?.name;
+            if (!version) continue;
+            if (!out.has(version)) out.set(version, new Set());
+            out.get(version).add(loc);
+        }
+    }
+
+    return out;
+}
+
+async function fetchPokeDbLocationsByVersionForPokemon(pokemonSlug) {
+    const out = new Map();
+    const idx = await loadPokeDbEncountersIndex();
+    const locations = idx?.locations;
+    if (!locations) return out;
+
+    const wanted = String(pokemonSlug || '').trim().toLowerCase();
+    if (!wanted) return out;
+
+    for (const [locationId, list] of Object.entries(locations)) {
+        if (!Array.isArray(list) || !list.length) continue;
+        for (const e of list) {
+            if (String(e?.pokemon || '').toLowerCase() !== wanted) continue;
+            const versions = Array.isArray(e?.versions) ? e.versions : [];
+            for (const v of versions) {
+                if (!v) continue;
+                if (!out.has(v)) out.set(v, new Set());
+                out.get(v).add(locationId);
+            }
+        }
+    }
+
+    return out;
+}
+
+async function buildWhereToFindByVersion(pokemonId, pokemonSlug) {
+    const cacheKey = String(pokemonId);
+    if (whereToFindByPokemonCache.has(cacheKey)) return whereToFindByPokemonCache.get(cacheKey);
+
+    const p = (async () => {
+        const map = new Map();
+
+        const [pokeApiMap, pokeDbMap] = await Promise.all([
+            fetchPokeApiLocationsByVersionForPokemon(pokemonId).catch(() => new Map()),
+            fetchPokeDbLocationsByVersionForPokemon(pokemonSlug).catch(() => new Map())
+        ]);
+
+        const merge = (src) => {
+            for (const [version, locs] of src.entries()) {
+                if (!map.has(version)) map.set(version, new Set());
+                const set = map.get(version);
+                for (const loc of locs) set.add(loc);
+            }
+        };
+
+        merge(pokeApiMap);
+        merge(pokeDbMap);
+
+        return map;
+    })();
+
+    whereToFindByPokemonCache.set(cacheKey, p);
+    return p;
+}
+
+function renderWhereToFindSectionPlaceholderHtml(pokemon) {
+    const displayName = formatName(pokemon?.name || '');
+    return `
+        <div class="full-width-section wherefind-section" data-pokemon-id="${pokemon?.id}" data-pokemon-slug="${pokemon?.name}">
+            <h3 class="section-header">Where to find ${displayName}</h3>
+            <div class="wherefind-body">
+                <div class="learnset-empty">Loading location data...</div>
+            </div>
+        </div>
+    `;
+}
+
+function renderWhereToFindRowsHtml(groups, byVersion, species) {
+    const isSpecial = !!(species?.is_mythical || species?.is_legendary);
+    const introGen = getSpeciesIntroducedGen(species);
+
+    const rows = groups.map(g => {
+        const genTooEarly = introGen && g.gen < introGen;
+
+        const locations = new Set();
+        for (const v of g.versions) {
+            const set = byVersion.get(v);
+            if (set) for (const loc of set) locations.add(loc);
+        }
+
+        let rightHtml = '';
+
+        if (genTooEarly) {
+            rightHtml = `<span class="details-muted">Not available in this game</span>`;
+        } else if (g.versions.includes('legends-z-a')) {
+            rightHtml = `<span class="details-muted">Location data not yet available</span>`;
+        } else if (locations.size) {
+            const locList = Array.from(locations).slice(0, 8);
+            const links = locList
+                .map(loc => `<a class="wherefind-link" href="location-detail.html?location=${encodeURIComponent(loc)}">${slugToTitle(loc)}</a>`)
+                .join(', ');
+            const more = locations.size > locList.length ? ` <span class="details-muted">(+${locations.size - locList.length} more)</span>` : '';
+            rightHtml = `${links}${more}`;
+        } else if (isSpecial) {
+            rightHtml = `Trade/migrate from another game`;
+        } else {
+            rightHtml = `<span class="details-muted">Not available in this game</span>`;
+        }
+
+        const left = g.labels.map(l => `<div class="wherefind-game">${l}</div>`).join('');
+        return `
+            <div class="wherefind-row">
+                <div class="wherefind-games">${left}</div>
+                <div class="wherefind-note">${rightHtml}</div>
+            </div>
+        `;
+    }).join('');
+
+    return rows || `<div class="learnset-empty">No location data available.</div>`;
+}
+
+async function setupWhereToFindSection(root, pokemon, species) {
+    const section = root?.querySelector(`.wherefind-section[data-pokemon-id="${pokemon?.id}"]`);
+    if (!section) return;
+
+    const body = section.querySelector('.wherefind-body');
+    if (!body) return;
+
+    const introGen = getSpeciesIntroducedGen(species);
+    const groups = WHERE_TO_FIND_GROUPS.filter(g => !introGen || g.gen >= introGen);
+
+    const byVersion = await buildWhereToFindByVersion(pokemon?.id, pokemon?.name);
+
+    body.innerHTML = renderWhereToFindRowsHtml(groups, byVersion, species);
+}
+
+function pokedbMethodToAppMethod(method) {
+    const m = String(method || '').toLowerCase();
+    // Keep this mapping conservative; unknown methods will just be shown as-is.
+    if (m === 'symbol-encounter' || m === 'random-encounter') return 'walk';
+    return m || 'special';
+}
+
+async function loadPokeDbEncountersIndex() {
+    // When opened via file://, browsers often block fetching local JSON.
+    // In that case we load the dataset via a plain <script> that sets a global.
+    if (window.__POKEDB_ENCOUNTERS_G8G9__) return window.__POKEDB_ENCOUNTERS_G8G9__;
+    if (pokedbEncountersIndexPromise) return pokedbEncountersIndexPromise;
+    pokedbEncountersIndexPromise = fetch(POKEDB_ENCOUNTERS_INDEX_URL)
+        .then(r => (r.ok ? r.json() : null))
+        .catch(() => null);
+    return pokedbEncountersIndexPromise;
+}
+
+async function getPokemonIdByNameCached(pokemonName) {
+    const key = String(pokemonName || '').trim().toLowerCase();
+    if (!key) return null;
+    if (pokemonIdByNameCache.has(key)) return pokemonIdByNameCache.get(key);
+    const p = fetchJson(`${API}/pokemon/${key}`)
+        .then(d => (Number.isFinite(d?.id) ? d.id : null))
+        .catch(() => null);
+    pokemonIdByNameCache.set(key, p);
+    return p;
+}
+
+async function fetchPokeDbEncounterRowsForLocation(locationIdentifier) {
+    const idx = await loadPokeDbEncountersIndex();
+    const list = idx?.locations?.[locationIdentifier];
+    if (!Array.isArray(list) || !list.length) return [];
+
+    const uniquePokemon = Array.from(new Set(list.map(e => String(e?.pokemon || '').toLowerCase()).filter(Boolean)));
+    // Resolve IDs with small concurrency.
+    const idResults = await promisePool(uniquePokemon, 6, (name) => getPokemonIdByNameCached(name));
+    const nameToId = new Map();
+    for (let i = 0; i < uniquePokemon.length; i++) {
+        const id = idResults[i];
+        if (Number.isFinite(id)) nameToId.set(uniquePokemon[i], id);
+    }
+
+    const rows = [];
+    for (const e of list) {
+        const pokemonName = String(e?.pokemon || '').toLowerCase();
+        const pokemonId = nameToId.get(pokemonName);
+        if (!Number.isFinite(pokemonId)) continue;
+
+        const versions = Array.isArray(e?.versions) ? e.versions : [];
+        const method = pokedbMethodToAppMethod(e?.method);
+        const chance = Number.isFinite(e?.chance) ? Math.round(e.chance) : null;
+        const minLevel = Number.isFinite(e?.minLevel) ? e.minLevel : null;
+        const maxLevel = Number.isFinite(e?.maxLevel) ? e.maxLevel : null;
+        const conditions = Array.isArray(e?.conditions) ? e.conditions.slice() : [];
+
+        for (const version of versions) {
+            if (!version) continue;
+            rows.push({
+                pokemonId,
+                pokemonName,
+                version,
+                method,
+                chance,
+                minLevel,
+                maxLevel,
+                conditions
+            });
+        }
+    }
+
+    return rows;
+}
+
+async function loadLocationFromInput() {
+    const input = document.getElementById('locationSearch');
+    const raw = input?.value || '';
+    const normalized = String(raw).trim().toLowerCase().replace(/\s+/g, '-');
+    if (!normalized) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('location', normalized);
+    window.history.replaceState({}, '', url.toString());
+    await loadAndRenderLocation(normalized);
+}
+
+async function loadAndRenderLocation(locationNameOrId) {
+    const root = document.getElementById('locationsRoot');
+    if (!root) return;
+
+    root.innerHTML = `
+        <div class="loading-container">
+            <div class="pokeball-spinner"></div>
+            <div>Loading location data...</div>
+        </div>
+    `;
+
+    try {
+        const location = await fetchJson(`${API}/location/${locationNameOrId}`);
+        const regionName = location?.region?.name || '';
+
+        const areas = Array.isArray(location?.areas) ? location.areas : [];
+        const areaUrls = areas.map(a => a?.url).filter(Boolean);
+
+        // Pull all area encounter tables (limit concurrency to avoid being too aggressive)
+        const areaData = await promisePool(areaUrls, 6, (url) => fetchJson(url).catch(() => null));
+
+        let rows = [];
+        const seen = new Set();
+
+        for (const area of areaData.filter(Boolean)) {
+            const pokemonEncounters = Array.isArray(area?.pokemon_encounters) ? area.pokemon_encounters : [];
+            for (const pe of pokemonEncounters) {
+                const pokemonName = pe?.pokemon?.name;
+                const pokemonUrl = pe?.pokemon?.url;
+                const pokemonId = parseIdFromUrl(pokemonUrl);
+                if (!pokemonName || !Number.isFinite(pokemonId)) continue;
+
+                const versionDetails = Array.isArray(pe?.version_details) ? pe.version_details : [];
+                for (const vd of versionDetails) {
+                    const version = vd?.version?.name;
+                    if (!version) continue;
+                    const encounterDetails = Array.isArray(vd?.encounter_details) ? vd.encounter_details : [];
+                    for (const d of encounterDetails) {
+                        const method = d?.method?.name || 'special';
+                        const chance = d?.chance;
+                        const minLevel = d?.min_level;
+                        const maxLevel = d?.max_level;
+                        const conditions = (d?.condition_values || [])
+                            .map(cv => cv?.name)
+                            .filter(Boolean)
+                            .map(slugToTitle)
+                            .sort();
+
+                        const key = [pokemonId, version, method, chance, minLevel, maxLevel, conditions.join('|')].join('::');
+                        if (seen.has(key)) continue;
+                        seen.add(key);
+
+                        rows.push({
+                            pokemonId,
+                            pokemonName,
+                            version,
+                            method,
+                            chance,
+                            minLevel,
+                            maxLevel,
+                            conditions
+                        });
+                    }
+                }
+            }
+        }
+
+        // If PokeAPI provides no encounters for Gen 8/9 regions, fall back to a compact local
+        // index generated from PokeDB Data Export (non-commercial; see README).
+        const regionKey = String(regionName || '').toLowerCase();
+        let usedPokeDbFallback = false;
+        if (!rows.length && (regionKey === 'galar' || regionKey === 'hisui' || regionKey === 'paldea')) {
+            try {
+                const pokedbRows = await fetchPokeDbEncounterRowsForLocation(location?.name || locationNameOrId);
+                if (pokedbRows.length) {
+                    rows = pokedbRows;
+                    usedPokeDbFallback = true;
+                }
+            } catch (e) {
+                // Non-fatal; we'll just show empty-state.
+                console.warn('PokeDB encounter fallback failed:', e);
+            }
+        }
+
+        const uniqueVersions = Array.from(new Set(rows.map(r => r.version)));
+        await Promise.all(uniqueVersions.map(v => getGenerationForVersion(v).catch(() => null)));
+
+        for (const r of rows) {
+            r.gen = await getGenerationForVersion(r.version).catch(() => null);
+        }
+
+        // Group identical encounters across games within the same generation.
+        // We only merge when the encounter chance matches (to avoid losing per-game differences).
+        const grouped = new Map();
+        for (const r of rows) {
+            if (!r.gen) continue;
+            const key = [
+                r.pokemonId,
+                r.gen,
+                r.method,
+                r.chance,
+                r.minLevel,
+                r.maxLevel,
+                (r.conditions || []).join('|')
+            ].join('::');
+
+            if (!grouped.has(key)) {
+                grouped.set(key, {
+                    pokemonId: r.pokemonId,
+                    pokemonName: r.pokemonName,
+                    gen: r.gen,
+                    method: r.method,
+                    chance: r.chance,
+                    minLevel: r.minLevel,
+                    maxLevel: r.maxLevel,
+                    conditions: r.conditions || [],
+                    versions: []
+                });
+            }
+
+            grouped.get(key).versions.push(r.version);
+        }
+
+        const byGen = new Map();
+        for (const entry of grouped.values()) {
+            if (!byGen.has(entry.gen)) byGen.set(entry.gen, []);
+            byGen.get(entry.gen).push(entry);
+        }
+
+        const gens = Array.from(byGen.keys()).sort((a, b) => b - a);
+
+        const locParts = getLocationNameParts(location?.name || locationNameOrId);
+        const displayTitle = locParts.title;
+        const displayRegion = slugToTitle(regionName || locParts.regionTitle || '');
+
+        const contentsLinks = gens
+            .map(g => `<a href="#gen-${g}">Generation ${g}</a>`)
+            .join('');
+
+        const contentBar = gens.length
+            ? `<div class="location-contents"><span class="location-contents-label">Contents</span>${contentsLinks}</div>`
+            : '';
+
+        const genSections = gens.map(gen => {
+            const genRows = byGen.get(gen) || [];
+
+            const byMethod = new Map();
+            for (const r of genRows) {
+                if (!byMethod.has(r.method)) byMethod.set(r.method, []);
+                byMethod.get(r.method).push(r);
+            }
+
+            const methods = Array.from(byMethod.keys()).sort((a, b) => {
+                const ka = sortMethodKey(a);
+                const kb = sortMethodKey(b);
+                if (ka !== kb) return ka - kb;
+                return a.localeCompare(b);
+            });
+
+            const methodSections = methods.map(method => {
+                const md = methodDisplay(method);
+                const methodRows = (byMethod.get(method) || [])
+                    .slice()
+                    .sort((a, b) => {
+                        const na = a.pokemonName.localeCompare(b.pokemonName);
+                        if (na !== 0) return na;
+                        const oa = GEN_VERSION_ORDER[a.gen] || [];
+                        const ob = GEN_VERSION_ORDER[b.gen] || [];
+                        const va = (a.versions || [])[0] || '';
+                        const vb = (b.versions || [])[0] || '';
+                        const ia = oa.indexOf(va);
+                        const ib = ob.indexOf(vb);
+                        if (ia !== -1 && ib !== -1) return ia - ib;
+                        return String(va).localeCompare(String(vb));
+                    });
+
+                const body = methodRows.map(r => {
+                    const spriteUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${r.pokemonId}.png`;
+                    const displayName = slugToTitle(r.pokemonName);
+                    const versions = Array.from(new Set(r.versions || []));
+                    const order = GEN_VERSION_ORDER[r.gen] || [];
+                    versions.sort((a, b) => {
+                        const ia = order.indexOf(a);
+                        const ib = order.indexOf(b);
+                        if (ia !== -1 && ib !== -1) return ia - ib;
+                        if (ia !== -1) return -1;
+                        if (ib !== -1) return 1;
+                        return a.localeCompare(b);
+                    });
+
+                    const games = versions
+                        .map(v => `<span class="game-chip" title="${MAINLINE_VERSION_META[v]?.label || slugToTitle(v)}">${getVersionAbbrev(v)}</span>`)
+                        .join('');
+                    const levels = `<span class="levels">${formatLevelRange(r.minLevel, r.maxLevel)}</span>`;
+
+                    const seasonIcons = seasonIconsHtml(r.conditions || []);
+                    const remaining = (r.conditions || []).filter(c => !String(c).startsWith('Time ') && !String(c).startsWith('Season '));
+                    const detailChips = remaining.length
+                        ? remaining.map(shortConditionChip).join('')
+                        : '<span class="details-muted">-</span>';
+
+                    const details = seasonIcons
+                        ? `<div class="detail-icons">${seasonIcons}</div><div class="detail-chips">${detailChips}</div>`
+                        : `<div class="detail-chips">${detailChips}</div>`;
+
+                    const times = timeIconsHtml(r.conditions || []);
+
+                    return `
+                        <tr>
+                            <td>
+                                <div class="poke-cell">
+                                    <img class="poke-sprite" src="${spriteUrl}" alt="${displayName}">
+                                    <a class="poke-link" href="pokemon.html?id=${r.pokemonId}">${displayName}</a>
+                                </div>
+                            </td>
+                            <td>${games}</td>
+                            <td>${times}</td>
+                            <td>${rarityIconHtml(r.chance)}</td>
+                            <td>${levels}</td>
+                            <td>${details}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                const subtitle = md.subtitle ? `<div class="method-subtitle">${md.subtitle}</div>` : '';
+
+                return `
+                    <div class="method-block">
+                        <div class="method-title">${md.title}</div>
+                        ${subtitle}
+                        <table class="encounter-table">
+                            <thead>
+                                <tr>
+                                    <th>Pokémon</th>
+                                    <th>Games</th>
+                                    <th>Times</th>
+                                    <th>Rarity</th>
+                                    <th>Levels</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${body || `<tr><td colspan="6" class="details-muted">No encounters found.</td></tr>`}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }).join('');
+
+            return `
+                <section id="gen-${gen}" class="gen-section">
+                    <div class="section-header">Generation ${gen}</div>
+                    ${methodSections}
+                </section>
+            `;
+        }).join('');
+
+        const regionLine = displayRegion ? `Region: <span style="color:#f5f7ff;font-weight:700">${displayRegion}</span>` : 'Region: -';
+        const apiNote = usedPokeDbFallback
+            ? `Source: PokeAPI (locations) + PokeDB Data Export (encounters)`
+            : `Source: PokeAPI (location + location-area encounter data)`;
+
+        let emptyNote = '';
+        if (!gens.length) {
+            const r = String(regionName || '').toLowerCase();
+            if (r === 'galar' || r === 'hisui' || r === 'paldea') {
+                emptyNote = `
+                    <div class="empty">
+                        No encounter data found for this <b>${slugToTitle(r)}</b> location.
+                        <div class="details-muted" style="margin-top:6px;">
+                            PokeAPI encounter tables are incomplete for these regions; this site will use a PokeDB-based fallback when available.
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        root.innerHTML = `
+            <div class="location-meta">
+                <div class="location-title">${displayTitle} <span class="muted">(location)</span></div>
+                <div class="location-subtitle">${regionLine} · <span class="details-muted">${apiNote}</span></div>
+            </div>
+            ${buildKeyToIconsHtml()}
+            ${contentBar}
+            ${genSections || emptyNote || '<div class="empty">No encounter data found for this location.</div>'}
+        `;
+    } catch (e) {
+        console.error(e);
+        root.innerHTML = `<div class="empty">Couldn’t load that location. Try something like <span style="color:#3bd5ff">kanto-route-3</span>.</div>`;
+    }
+}
+
+async function initLocationsPage() {
+    const root = document.getElementById('locationsRoot');
+    if (!root) return;
+
+    const input = document.getElementById('locationSearch');
+    const btn = document.getElementById('loadLocationBtn');
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const initial = (urlParams.get('location') || 'kanto-route-3').trim();
+    if (input) input.value = initial;
+
+    if (btn && !btn._locationsBound) {
+        btn._locationsBound = true;
+        btn.addEventListener('click', () => loadLocationFromInput());
+    }
+    if (input && !input._locationsBound) {
+        input._locationsBound = true;
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') loadLocationFromInput();
+        });
+    }
+
+    await loadAndRenderLocation(initial);
+}
+
+async function initLocationsGuidePage() {
+    const tabsRoot = document.getElementById('regionTabs');
+    const panelsRoot = document.getElementById('regionPanels');
+    if (!tabsRoot || !panelsRoot) return;
+
+    const regions = [
+        { id: 1, slug: 'kanto', label: 'Kanto' },
+        { id: 2, slug: 'johto', label: 'Johto' },
+        { id: 3, slug: 'hoenn', label: 'Hoenn' },
+        { id: 4, slug: 'sinnoh', label: 'Sinnoh' },
+        { id: 5, slug: 'unova', label: 'Unova' },
+        { id: 6, slug: 'kalos', label: 'Kalos' },
+        { id: 7, slug: 'alola', label: 'Alola' },
+        { id: 8, slug: 'galar', label: 'Galar' },
+        { id: 9, slug: 'hisui', label: 'Hisui' },
+        { id: 10, slug: 'paldea', label: 'Paldea' }
+    ];
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const requested = (urlParams.get('region') || '').trim().toLowerCase();
+    const initialRegion = regions.find(r => r.slug === requested)?.slug || 'kanto';
+
+    tabsRoot.innerHTML = regions
+        .map(r => `<button type="button" class="region-tab${r.slug === initialRegion ? ' active' : ''}" data-region-tab="${r.slug}">${r.label}</button>`)
+        .join('');
+
+    panelsRoot.innerHTML = regions
+        .map(r => `
+            <div class="region-panel${r.slug === initialRegion ? ' active' : ''}" data-region-panel="${r.slug}">
+                <div class="loading">Loading ${r.label} locations...</div>
+            </div>
+        `)
+        .join('');
+
+    // Tab switching
+    tabsRoot.querySelectorAll('.region-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const region = btn.dataset.regionTab;
+            tabsRoot.querySelectorAll('.region-tab').forEach(b => b.classList.remove('active'));
+            panelsRoot.querySelectorAll('.region-panel').forEach(p => p.classList.remove('active'));
+            btn.classList.add('active');
+            const panel = panelsRoot.querySelector(`.region-panel[data-region-panel="${region}"]`);
+            if (panel) panel.classList.add('active');
+
+            const url = new URL(window.location.href);
+            url.searchParams.set('region', region);
+            window.history.replaceState({}, '', url.toString());
+
+            // Lazy-load if needed
+            if (panel && !panel.dataset.loaded) {
+                loadRegionLocations(region, panel);
+            }
+        });
+    });
+
+    // Load initial panel
+    const initialPanel = panelsRoot.querySelector(`.region-panel[data-region-panel="${initialRegion}"]`);
+    if (initialPanel) {
+        await loadRegionLocations(initialRegion, initialPanel);
+    }
+}
+
+async function loadRegionLocations(regionSlug, panelEl) {
+    if (!panelEl) return;
+    panelEl.dataset.loaded = '1';
+
+    const regionMeta = {
+        kanto: 1,
+        johto: 2,
+        hoenn: 3,
+        sinnoh: 4,
+        unova: 5,
+        kalos: 6,
+        alola: 7,
+        galar: 8,
+        hisui: 9,
+        paldea: 10
+    };
+    const id = regionMeta[String(regionSlug || '')] || 1;
+
+    try {
+        const region = await fetchJson(`${API}/region/${id}`);
+        const locations = (region?.locations || [])
+            .map(l => l?.name)
+            .filter(Boolean)
+            .sort((a, b) => a.localeCompare(b));
+
+        const links = locations.map(slug => {
+            const label = slugToTitle(slug);
+            return `<a class="location-link" href="location-detail.html?location=${encodeURIComponent(slug)}">${label}</a>`;
+        }).join('');
+
+        panelEl.innerHTML = `
+            <div class="region-grid">
+                ${links || '<div class="empty">No locations found.</div>'}
+            </div>
+        `;
+    } catch (e) {
+        console.error(e);
+        panelEl.innerHTML = `<div class="empty">Error loading region locations.</div>`;
+    }
 }
 
 const POKEDEX_IDS = {
@@ -636,13 +1821,12 @@ async function init() {
     setupDamageClasses();
 }
 
-async function loadPokedex(id, name, event) {
-  // Handle highlighting
-  if (event) {
-    event.preventDefault();
-    document.querySelectorAll('.sub-nav-item').forEach(el => el.classList.remove('active'));
-    event.currentTarget.classList.add('active');
-  }
+async function loadPokedex(id, name, triggerEl) {
+    // Handle highlighting
+    if (triggerEl) {
+        document.querySelectorAll('.sub-nav-item').forEach(el => el.classList.remove('active'));
+        triggerEl.classList.add('active');
+    }
 
   // Ensure we are on the pokedex page
   if (currentPage !== 'pokedex') {
@@ -684,14 +1868,13 @@ async function loadPokedex(id, name, event) {
 
 function setupDamageClasses() {
     document.getElementById('categoryButtons').innerHTML = DAMAGE_CLASSES.map(c => 
-        `<button class="type-btn ${c === 'all' ? 'active' : ''}" onclick="setDamageClassFilter('${c}')">${c.toUpperCase()}</button>`
+        `<button class="type-btn ${c === 'all' ? 'active' : ''}" data-action="set-damage-class-filter" data-damage-class="${c}" type="button">${c.toUpperCase()}</button>`
     ).join('');
 }
 
-function togglePokedexMenu(event) {
-  event.preventDefault();
+function togglePokedexMenu(triggerEl) {
   const menu = document.getElementById('pokedexSubMenu');
-  const item = event.currentTarget;
+    const item = triggerEl;
   
   if (menu.style.display === 'none') {
     menu.style.display = 'block';
@@ -702,10 +1885,9 @@ function togglePokedexMenu(event) {
   }
 }
 
-function toggleEggGroupMenu(event) {
-  event.preventDefault();
+function toggleEggGroupMenu(triggerEl) {
   const menu = document.getElementById('eggGroupSubMenu');
-  const item = event.currentTarget;
+    const item = triggerEl;
   
   if (menu.style.display === 'none') {
     menu.style.display = 'block';
@@ -720,13 +1902,11 @@ let movesPage = 1;
 const MOVES_PER_PAGE = 50;
 let currentMovesSort = { field: 'name', dir: 'asc' };
 
-async function switchPage(page) {
+async function switchPage(page, triggerEl) {
   currentPage = page;
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-    // switchPage can be called from inline onclick (which provides a global `event`)
-    // or programmatically (no event available).
-    if (typeof event !== 'undefined' && event && event.target) {
-        event.target.classList.add('active');
+    if (triggerEl) {
+        triggerEl.classList.add('active');
     }
 
   const grid = document.getElementById('grid');
@@ -829,9 +2009,9 @@ function renderMovesPage() {
       </div>
       <div id="movesTableContainer"></div>
       <div class="pagination">
-        <button class="page-btn" onclick="changeMovesPage(-1)">Previous</button>
+        <button class="page-btn" data-action="change-moves-page" data-delta="-1" type="button">Previous</button>
         <span id="pageInfo" style="align-self:center;color:#8b92a5">Page 1</span>
-        <button class="page-btn" onclick="changeMovesPage(1)">Next</button>
+        <button class="page-btn" data-action="change-moves-page" data-delta="1" type="button">Next</button>
       </div>
     `;
   }
@@ -931,12 +2111,12 @@ async function renderMovesTable() {
     <table class="main-move-table">
       <thead>
         <tr>
-          <th onclick="sortMoves('name')">Name</th>
-          <th onclick="sortMoves('type')">Type</th>
-          <th onclick="sortMoves('damage_class')">Cat.</th>
-          <th onclick="sortMoves('power')">Power</th>
-          <th onclick="sortMoves('accuracy')">Acc.</th>
-          <th onclick="sortMoves('pp')">PP</th>
+          <th data-action="sort-moves" data-field="name">Name</th>
+          <th data-action="sort-moves" data-field="type">Type</th>
+          <th data-action="sort-moves" data-field="damage_class">Cat.</th>
+          <th data-action="sort-moves" data-field="power">Power</th>
+          <th data-action="sort-moves" data-field="accuracy">Acc.</th>
+          <th data-action="sort-moves" data-field="pp">PP</th>
           <th>Effect</th>
           <th>Prob. (%)</th>
         </tr>
@@ -1070,16 +2250,16 @@ container.innerHTML = html;
 
 function setupTypes() {
 document.getElementById('typeButtons').innerHTML = TYPES.map(t => 
-    `<button class="type-btn ${t === 'all' ? 'active' : ''}" onclick="setFilter('${t}')">${t.toUpperCase()}</button>`
+    `<button class="type-btn ${t === 'all' ? 'active' : ''}" data-action="set-type-filter" data-type="${t}" type="button">${t.toUpperCase()}</button>`
 ).join('');
 }
 
-async function setDamageClassFilter(c) {
+async function setDamageClassFilter(c, triggerEl) {
 damageClassFilter = c;
 // Update active state for category buttons only
 const buttons = document.getElementById('categoryButtons').querySelectorAll('.type-btn');
 buttons.forEach(b => b.classList.remove('active'));
-event.target.classList.add('active');
+if (triggerEl) triggerEl.classList.add('active');
 
 const grid = document.getElementById('grid');
 
@@ -1107,7 +2287,7 @@ if (currentPage === 'pokedex') {
     
     document.getElementById('empty').style.display = 'none';
     grid.innerHTML = filtered.map(p => `
-    <div class="card" id="card-${p.id}" onclick="window.location.href='pokemon.html?id=${p.id}'">
+    <div class="card" id="card-${p.id}" data-action="open-pokemon" data-pokemon-id="${p.id}">
         <div class="card-header">
         <div class="card-name">${p.name.charAt(0).toUpperCase() + p.name.slice(1)}</div>
         <div class="card-id">#${String(p.dexId || p.id).padStart(3, '0')}</div>
@@ -1140,7 +2320,7 @@ if (currentPage === 'pokedex') {
     
     document.getElementById('empty').style.display = 'none';
     grid.innerHTML = filtered.map(m => `
-    <div class="card" onclick="moveDetail(${m.id})" style="height: auto; min-height: 100px; display: flex; flex-direction: column; justify-content: center;">
+    <div class="card" data-action="open-move" data-move-id="${m.id}" style="height: auto; min-height: 100px; display: flex; flex-direction: column; justify-content: center;">
         <div class="card-header" style="margin-bottom: 0;">
         <div class="card-name" style="font-size: 14px;">${m.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>
         ${m.type ? `<span class="type-tag" style="background: ${TYPE_COLORS[m.type]}">${m.type}</span>` : ''}
@@ -1194,12 +2374,12 @@ function moveDetail(id) {
     window.location.href = `move-detail.html?move=${id}`;
 }
 
-async function setFilter(t) {
+async function setFilter(t, triggerEl) {
 filter = t;
 // Update active state for type buttons only
 const buttons = document.getElementById('typeButtons').querySelectorAll('.type-btn');
 buttons.forEach(b => b.classList.remove('active'));
-event.target.classList.add('active');
+if (triggerEl) triggerEl.classList.add('active');
 
 const grid = document.getElementById('grid');
 grid.innerHTML = '<div class="loading">Fetching data...</div>';
@@ -1264,7 +2444,7 @@ const statBars = d.stats.map(s => {
     `;
 }).join('');
 
-const abilities = d.abilities.map(a => `<span class="ability-tag" onclick="filterByAbility('${a.ability.name}', event)" style="cursor: pointer;">${a.ability.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>`).join('');
+const abilities = d.abilities.map(a => `<span class="ability-tag" data-action="filter-by-ability" data-ability="${a.ability.name}" style="cursor: pointer;">${a.ability.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>`).join('');
 const moves = d.moves.slice(0, 20).map(m => `<span class="move-tag">${m.move.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>`).join('');
 
 // Conversions
@@ -1349,7 +2529,7 @@ if (!gens.length) {
 
 const tabsContainer = document.getElementById('move-tabs');
 tabsContainer.innerHTML = gens.map(g => 
-    `<button class="move-tab" onclick="switchGenTab(${g})">Gen ${g}</button>`
+    `<button class="move-tab" data-action="switch-gen-tab" data-gen="${g}" type="button">Gen ${g}</button>`
 ).join('');
 
 // Activate first tab (latest gen)
@@ -1452,7 +2632,7 @@ document.getElementById('modal').classList.remove('open');
 }
 
 async function filterByAbility(abilityName, event) {
-event.stopPropagation();
+if (event) event.stopPropagation();
 closeModal();
 
 const grid = document.getElementById('grid');
@@ -1471,7 +2651,9 @@ try {
     // Update subtitle to show active filter
     const subtitle = document.querySelector('.subtitle');
     const formattedAbility = abilityName.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    subtitle.innerHTML = `Filtering by Ability: <span style="color:#3bd5ff">${formattedAbility}</span> (${pokemon.length} found) <a href="#" onclick="init(); return false;" style="color:#8b92a5; margin-left:10px; font-size:12px; text-decoration:underline;">Clear Filter</a>`;
+    subtitle.innerHTML = `Filtering by Ability: <span style="color:#3bd5ff">${formattedAbility}</span> (${pokemon.length} found) <a href="#" data-action="clear-ability-filter" style="color:#8b92a5; margin-left:10px; font-size:12px; text-decoration:underline;">Clear Filter</a>`;
+        subtitle.innerHTML = `Filtering by Ability: <span style="color:#3bd5ff">${formattedAbility}</span> (${pokemon.length} found) <a href="#" data-action="clear-ability-filter" style="color:#8b92a5; margin-left:10px; font-size:12px; text-decoration:underline;">Clear Filter</a>`;
+    setupActionDelegation();
     
     render();
 } catch (e) {
@@ -1491,6 +2673,9 @@ function getInitialRouteFromHash() {
     if (hash === 'type-chart' || hash === 'typechart') return 'type-chart';
     return null;
 }
+
+// Enable data-action click handling across all pages.
+setupActionDelegation();
 
 async function initPokedexPage() {
     await init();
@@ -1518,6 +2703,10 @@ if (detailContainer) {
     loadAbilityDetail();
 } else if (window.location.pathname.includes('move-detail.html')) {
     loadMoveDetail();
+} else if (window.location.pathname.includes('location-detail.html')) {
+    initLocationsPage();
+} else if (window.location.pathname.includes('locations.html')) {
+    initLocationsGuidePage();
 } else {
     // Default landing page is the main Pokédex app (Pokémon Database.html)
     initPokedexPage();
@@ -1539,6 +2728,20 @@ async function loadPokemonDetails(id) {
             fetch(`${API}/pokemon/${id}`).then(r => r.json()),
             fetch(`${API}/pokemon-species/${id}`).then(r => r.json())
         ]);
+
+        // Fill missing Gen 7–9 dex entries using GraphQL-Pokemon.
+        // (PokeAPI is missing a lot of Gen 9 flavor texts.)
+        try {
+            const byGen = buildDexEntriesByGeneration(speciesData);
+            const needsGql = !byGen[7] || !byGen[8] || !byGen[9];
+            if (needsGql) {
+                const gqlByVersion = await fetchGraphqlDexFlavorTextsByDexNumber(pokemonData?.id);
+                if (gqlByVersion) speciesData.__gqlDexByVersion = gqlByVersion;
+            }
+        } catch (e) {
+            // Non-fatal; dex entries will just remain as-is.
+            console.warn('GraphQL-Pokemon dex fallback failed:', e);
+        }
 
         const evolutionData = await fetch(speciesData.evolution_chain.url).then(r => r.json());
         
@@ -1737,6 +2940,7 @@ function renderPokemonDetail(p, species, evo, allForms = []) {
         mainRoot.innerHTML = mainContent;
         setupDexEntryTabs(mainRoot);
         setupLearnsetSection(mainRoot);
+        setupWhereToFindSection(mainRoot, p, species);
         
         // Render alternate forms
         relevantForms.forEach((form, idx) => {
@@ -1758,6 +2962,7 @@ function renderPokemonDetail(p, species, evo, allForms = []) {
             formRoot.innerHTML = formContent;
             setupDexEntryTabs(formRoot);
             setupLearnsetSection(formRoot);
+            setupWhereToFindSection(formRoot, form, species);
         });
     }
     
@@ -1997,6 +3202,8 @@ function renderFormContent(p, species, evo, genus, localDexHtml, catchRate, base
         </div>
 
         ${learnsetSectionHtml}
+
+        ${renderWhereToFindSectionPlaceholderHtml(p)}
     `;
 }
 
@@ -2215,7 +3422,7 @@ function renderEvolutionChain(chain) {
         
         let html = `
             <div class="evo-pokemon-card">
-                <div class="evo-card" onclick="window.location.href='pokemon.html?id=${speciesId}'" style="cursor: pointer;">
+                <div class="evo-card" data-action="open-pokemon" data-pokemon-id="${speciesId}" style="cursor: pointer;">
                     <div class="evo-card-image">
                         <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${speciesId}.png" alt="${displayName}" class="evo-card-img" onerror="this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${speciesId}.png'">
                     </div>
@@ -2296,7 +3503,7 @@ function renderEvolutionChain(chain) {
                                             ${evo.method ? `<div class="evo-method">${evo.method}, in Legends: Arceus</div>` : '<div class="evo-method">(in Legends: Arceus)</div>'}
                                         </div>
                                         <div class="evo-pokemon-card">
-                                            <div class="evo-card" onclick="window.location.href='pokemon.html?id=${variantId}'" style="cursor: pointer;">
+                                            <div class="evo-card" data-action="open-pokemon" data-pokemon-id="${variantId}" style="cursor: pointer;">
                                                 <div class="evo-card-image">
                                                     <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${variantId}.png" alt="${variantDisplayName}" class="evo-card-img" onerror="this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${variantId}.png'">
                                                 </div>
@@ -2558,7 +3765,7 @@ async function loadEggGroupDetail(groupName) {
             const id = parseInt(s.url.split('/').filter(Boolean).pop());
             const name = s.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
             return `
-                <div class="card" id="card-${id}" onclick="window.location.href='pokemon.html?id=${id}'">
+                <div class="card" id="card-${id}" data-action="open-pokemon" data-pokemon-id="${id}">
                     <div class="card-header">
                         <div class="card-name">${name}</div>
                         <div class="card-id">#${String(id).padStart(3, '0')}</div>
@@ -2739,7 +3946,7 @@ function renderAbilitiesTable(filteredAbilities = null) {
 
     const rows = abilities.map(ability => `
         <tr data-gen="${ability.generation}">
-            <td><a href="#" class="ability-name" onclick="showAbilityPokemon('${ability.name}', event)">${ability.displayName}</a></td>
+            <td><a href="#" class="ability-name" data-action="show-ability-pokemon" data-ability="${ability.name}">${ability.displayName}</a></td>
             <td class="pokemon-count">${ability.pokemonCount}</td>
             <td>${ability.effect}</td>
             <td class="gen-badge">${ability.generation}</td>
@@ -2823,8 +4030,12 @@ function sortAbilitiesTable(columnIndex) {
 }
 
 async function showAbilityPokemon(abilityName, event) {
-    event.preventDefault();
-    
+    if (event && typeof event.preventDefault === 'function') {
+        event.preventDefault();
+    }
+
+    if (!abilityName) return;
+
     // Navigate to ability detail page
     window.location.href = `ability-detail.html?ability=${abilityName}`;
 }
@@ -3083,7 +4294,64 @@ async function loadMoveDetail() {
 
     try {
         const response = await fetch(`${API}/move/${moveParam}`);
-        const move = await response.json();
+        let move = null;
+        if (response.ok) {
+            move = await response.json();
+        }
+
+        // If PokeAPI doesn't have this move (or returns unusable data), try GraphQL-Pokemon.
+        let gqlMove = null;
+        if (!move || !move.name) {
+            gqlMove = await fetchGraphqlMoveFallback(moveParam).catch(() => null);
+            if (!gqlMove) throw new Error('Move not found in PokeAPI or GraphQL-Pokemon');
+
+            const displayName = formatName(gqlMove.name || String(moveParam));
+            if (titleEl) titleEl.textContent = `${displayName} (move)`;
+            document.title = `${displayName} - Pokémon Database`;
+
+            const typeName = (gqlMove.type || '').toLowerCase();
+            const damageClass = (gqlMove.category || '').toLowerCase();
+
+            if (chipsEl) {
+                const typeChip = typeName && TYPE_COLORS[typeName]
+                    ? `<span class="type-tag" style="background:${TYPE_COLORS[typeName]}">${typeName}</span>`
+                    : (typeName ? `<span class="chip">${typeName}</span>` : '');
+                const classChip = damageClass ? `<span class="chip">${damageClass}</span>` : '';
+                chipsEl.innerHTML = `${typeChip}${classChip}`;
+            }
+
+            const effectText = gqlMove.desc || gqlMove.shortDesc || 'No description available.';
+            if (effectEl) effectEl.textContent = effectText;
+
+            const dataRows = [];
+            dataRows.push(['Type', typeName && TYPE_COLORS[typeName]
+                ? `<span class="type-tag" style="background:${TYPE_COLORS[typeName]}; font-size: 11px; padding: 3px 8px;">${typeName}</span>`
+                : (typeName || '-')]);
+            dataRows.push(['Category', damageClass ? formatName(damageClass) : '-']);
+            dataRows.push(['Power', gqlMove.basePower ?? '-']);
+            dataRows.push(['Accuracy', gqlMove.accuracy ?? '-']);
+            dataRows.push(['PP', gqlMove.pp ?? '-']);
+            dataRows.push(['Priority', gqlMove.priority ?? '-']);
+
+            if (dataEl) {
+                dataEl.innerHTML = dataRows.map(([label, value]) => `
+                    <div class="data-row">
+                        <div class="data-label">${label}</div>
+                        <div class="data-value">${value}</div>
+                    </div>
+                `).join('');
+            }
+
+            if (gameEl) gameEl.innerHTML = '<p style="color: #8b92a5;">No game descriptions available</p>';
+            if (langsEl) langsEl.innerHTML = '<p style="color: #8b92a5;">No translations available</p>';
+            if (learnedTitleEl) learnedTitleEl.textContent = 'Learned by (–)';
+            if (learnedNoteEl) learnedNoteEl.textContent = 'Learned-by lists are not available from GraphQL-Pokemon.';
+            if (learnedByLevelUpTitleEl) learnedByLevelUpTitleEl.textContent = 'Learnt by level up (–)';
+            if (learnedByBreedingTitleEl) learnedByBreedingTitleEl.textContent = 'Learnt by breeding (–)';
+            if (learnedByLevelUpEl) learnedByLevelUpEl.innerHTML = '<p style="color: #8b92a5;">No data available.</p>';
+            if (learnedByBreedingEl) learnedByBreedingEl.innerHTML = '<p style="color: #8b92a5;">No data available.</p>';
+            return;
+        }
 
         const displayName = formatName(move.name);
         if (titleEl) titleEl.textContent = `${displayName} (move)`;
@@ -3106,17 +4374,25 @@ async function loadMoveDetail() {
         }
 
         const englishEffect = move.effect_entries?.find(e => e?.language?.name === 'en');
-        const effectText = englishEffect?.effect || englishEffect?.short_effect || 'No description available.';
-        const formattedEffect = effectText.replace(/\$effect_chance/g, move.effect_chance);
+        let effectText = englishEffect?.effect || englishEffect?.short_effect || '';
+        if (!effectText) {
+            gqlMove = await fetchGraphqlMoveFallback(move.name).catch(() => null);
+            effectText = gqlMove?.desc || gqlMove?.shortDesc || 'No description available.';
+        }
+        const formattedEffect = String(effectText).replace(/\$effect_chance/g, move.effect_chance);
         if (effectEl) effectEl.textContent = formattedEffect;
 
         const dataRows = [];
         dataRows.push(['Type', typeName ? `<span class="type-tag" style="background:${TYPE_COLORS[typeName]}; font-size: 11px; padding: 3px 8px;">${typeName}</span>` : '-']);
         dataRows.push(['Category', damageClass ? formatName(damageClass) : '-']);
-        dataRows.push(['Power', move.power ?? '-']);
-        dataRows.push(['Accuracy', move.accuracy ?? '-']);
-        dataRows.push(['PP', move.pp ?? '-']);
-        dataRows.push(['Priority', move.priority ?? '-']);
+        const power = move.power ?? gqlMove?.basePower ?? '-';
+        const accuracy = move.accuracy ?? gqlMove?.accuracy ?? '-';
+        const pp = move.pp ?? gqlMove?.pp ?? '-';
+        const priority = move.priority ?? gqlMove?.priority ?? '-';
+        dataRows.push(['Power', power]);
+        dataRows.push(['Accuracy', accuracy]);
+        dataRows.push(['PP', pp]);
+        dataRows.push(['Priority', priority]);
         dataRows.push(['Effect chance', move.effect_chance ?? '-']);
         dataRows.push(['Target', move.target?.name ? formatName(move.target.name) : '-']);
         dataRows.push(['Generation', move.generation?.name ? formatName(move.generation.name) : '-']);

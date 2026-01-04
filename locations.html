@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Pokémon Locations</title>
+	<link rel="stylesheet" href="style.css">
+	<link rel="stylesheet" href="detail.css">
+	<link rel="stylesheet" href="locations-guide.css">
+</head>
+
+<body>
+	<div class="layout">
+		<aside class="sidebar">
+			<div class="sidebar-header">
+				<div class="logo-icon"></div>
+				<span>Pokémon Data</span>
+			</div>
+			<nav class="sidebar-nav">
+				<div class="nav-section">
+					<div class="nav-group">
+						<a href="Pokémon Database.html" class="nav-item" data-action="toggle-pokedex-menu">Pokédex <span class="arrow">▼</span></a>
+						<div class="nav-sub-menu" id="pokedexSubMenu" style="display: none;">
+							<div class="sub-menu-group">
+								<div class="sub-menu-title">Pokédex with stats</div>
+								<a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="all" data-dex-name="All Pokémon">All Pokémon</a>
+							</div>
+
+							<div class="sub-menu-group">
+								<div class="sub-menu-title">Native Pokédexes</div>
+								<a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="1" data-dex-name="National Dex">National Dex</a>
+								<a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="paldea" data-dex-name="Scarlet & Violet">Scarlet & Violet</a>
+								<a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="30" data-dex-name="Legends: Arceus">Legends: Arceus</a>
+								<a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="5" data-dex-name="Brilliant Diamond & Shining Pearl">Brilliant Diamond & Shining Pearl</a>
+								<a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="27" data-dex-name="Sword & Shield">Sword & Shield</a>
+								<a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="26" data-dex-name="Let's Go Pikachu & Eevee">Let's Go Pikachu & Eevee</a>
+								<a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="21" data-dex-name="Ultra Sun & Ultra Moon">Ultra Sun & Ultra Moon</a>
+								<a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="16" data-dex-name="Sun & Moon">Sun & Moon</a>
+								<a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="15" data-dex-name="Omega Ruby & Alpha Sapphire">Omega Ruby & Alpha Sapphire</a>
+								<a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="12" data-dex-name="X & Y">X & Y</a>
+								<a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="9" data-dex-name="Black 2 & White 2">Black 2 & White 2</a>
+								<a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="8" data-dex-name="Black & White">Black & White</a>
+								<a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="7" data-dex-name="HeartGold & SoulSilver">HeartGold & SoulSilver</a>
+								<a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="6" data-dex-name="Platinum">Platinum</a>
+								<a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="5" data-dex-name="Diamond & Pearl">Diamond & Pearl</a>
+								<a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="2" data-dex-name="FireRed & LeafGreen">FireRed & LeafGreen</a>
+								<a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="4" data-dex-name="Ruby, Sapphire & Emerald">Ruby, Sapphire & Emerald</a>
+								<a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="3" data-dex-name="Gold, Silver & Crystal">Gold, Silver & Crystal</a>
+								<a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="2" data-dex-name="Red, Blue & Yellow">Red, Blue & Yellow</a>
+							</div>
+						</div>
+					</div>
+
+					<a href="Pokémon Database.html#moves" class="nav-item">Moves</a>
+					<a href="Pokémon Database.html#type-chart" class="nav-item">Type chart</a>
+					<a href="abilities.html" class="nav-item">Abilities</a>
+
+					<div class="nav-group">
+						<a href="#" class="nav-item" data-action="toggle-egg-group-menu">Egg groups <span class="arrow">▼</span></a>
+						<div class="nav-sub-menu" id="eggGroupSubMenu" style="display: none;">
+							<a href="egg-group.html?group=indeterminate" class="sub-nav-item egg-group-link">Amorphous</a>
+							<a href="egg-group.html?group=bug" class="sub-nav-item egg-group-link">Bug</a>
+							<a href="egg-group.html?group=ditto" class="sub-nav-item egg-group-link">Ditto</a>
+							<a href="egg-group.html?group=dragon" class="sub-nav-item egg-group-link">Dragon</a>
+							<a href="egg-group.html?group=fairy" class="sub-nav-item egg-group-link">Fairy</a>
+							<a href="egg-group.html?group=flying" class="sub-nav-item egg-group-link">Flying</a>
+							<a href="egg-group.html?group=ground" class="sub-nav-item egg-group-link">Ground</a>
+							<a href="egg-group.html?group=humanshape" class="sub-nav-item egg-group-link">Human-Like</a>
+							<a href="egg-group.html?group=mineral" class="sub-nav-item egg-group-link">Mineral</a>
+							<a href="egg-group.html?group=monster" class="sub-nav-item egg-group-link">Monster</a>
+							<a href="egg-group.html?group=no-eggs" class="sub-nav-item egg-group-link">No Eggs</a>
+							<a href="egg-group.html?group=plant" class="sub-nav-item egg-group-link">Plant</a>
+							<a href="egg-group.html?group=water1" class="sub-nav-item egg-group-link">Water 1</a>
+							<a href="egg-group.html?group=water2" class="sub-nav-item egg-group-link">Water 2</a>
+							<a href="egg-group.html?group=water3" class="sub-nav-item egg-group-link">Water 3</a>
+						</div>
+					</div>
+
+					<a href="locations.html" class="nav-item active">Pokémon locations</a>
+				</div>
+			</nav>
+		</aside>
+
+		<main class="main-content">
+			<div class="container">
+				<div class="location-guide-card">
+					<div class="location-guide-header">
+						<div class="location-guide-title">Pokémon Location guide</div>
+						<div class="location-guide-desc">
+							Welcome to the Pokémon Location guide! Here you will find the details of every Pokémon on every route of the Pokémon games.
+							<br>
+							Click a tab to list the locations in that region, then click a location to see the Pokémon there.
+						</div>
+					</div>
+
+					<div class="region-tabs" id="regionTabs"></div>
+					<div id="regionPanels"></div>
+				</div>
+			</div>
+		</main>
+	</div>
+
+	<script src="script.js"></script>
+</body>
+</html>
+

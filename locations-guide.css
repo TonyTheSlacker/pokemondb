@@ -1,0 +1,96 @@
+/* Locations guide page styles */
+
+.location-guide-card {
+  background: #151928;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.location-guide-header {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.location-guide-title {
+  font-size: 34px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.location-guide-desc {
+  color: #8b92a5;
+  font-size: 13px;
+  line-height: 1.45;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.region-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 16px 0 8px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.region-tab {
+  padding: 10px 14px;
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  background: rgba(21, 25, 40, 0.6);
+  color: #f5f7ff;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.region-tab:hover {
+  border-color: rgba(59, 213, 255, 0.4);
+}
+
+.region-tab.active {
+  background: rgba(59, 213, 255, 0.16);
+  border-color: rgba(59, 213, 255, 0.45);
+  color: #3bd5ff;
+}
+
+.region-panel {
+  display: none;
+}
+
+.region-panel.active {
+  display: block;
+}
+
+.region-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(160px, 1fr));
+  gap: 8px 18px;
+  padding: 10px 0 0 0;
+}
+
+@media (max-width: 1200px) {
+  .region-grid { grid-template-columns: repeat(3, minmax(160px, 1fr)); }
+}
+
+@media (max-width: 720px) {
+  .region-grid { grid-template-columns: repeat(2, minmax(150px, 1fr)); }
+}
+
+.location-link {
+  color: #3bd5ff;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 6px 8px;
+  border-radius: 10px;
+}
+
+.location-link:hover {
+  background: rgba(59, 213, 255, 0.08);
+  text-decoration: underline;
+}

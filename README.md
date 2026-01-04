@@ -198,9 +198,14 @@ The system intelligently detects and displays all form variants:
 
 ## 📝 Data Attribution
 
-All Pokémon data is sourced from **[PokéAPI](https://pokeapi.co/)**, a free REST API maintained by the Pokémon community.
+This project pulls data from multiple community sources:
 
-Official artwork from **PokéAPI Sprites** and **PokeDB**.
+* **[PokéAPI](https://pokeapi.co/)** — primary source for Pokémon, moves, species, and most relationships.
+* **[GraphQL-Pokemon](https://github.com/favware/graphql-pokemon)** — fallback source for missing dex flavor text and some move fields.
+* **[PokeDB Data Export](https://pokedb.org/data-export)** — used to backfill Gen 8/9 wild encounter tables where PokéAPI is currently incomplete.
+
+The Gen 8/9 encounters index is generated into [data/pokedb-encounters-g8g9.json](data/pokedb-encounters-g8g9.json) using [tools/build_pokedb_encounters.py](tools/build_pokedb_encounters.py).
+PokeDB’s export is provided for educational/research/non-commercial use and requests attribution; see their Data Export page for details.
 
 ---
 
@@ -208,7 +213,7 @@ Official artwork from **PokéAPI Sprites** and **PokeDB**.
 
 * Offline mode not supported (requires internet for API calls)
 * Move tutors and event-exclusive moves may have limited availability info
-* Location data is incomplete (planned expansion)
+* Some encounter mechanics are simplified when displayed in tables (e.g., SV probability systems, raids)
 * Some older generation form data may be sparse in PokéAPI
 
 ---
@@ -228,7 +233,8 @@ Official artwork from **PokéAPI Sprites** and **PokeDB**.
 
 ## 📄 License
 
-This project uses publicly available data from **PokéAPI** under the fair use guidelines. Pokémon is a trademark of Nintendo/The Pokémon Company.
+This is a fan project. Pokémon and Pokémon character names are trademarks of Nintendo / Game Freak / Creatures.
+If you redistribute this project, make sure you comply with the terms of any upstream data sources (PokéAPI, GraphQL-Pokemon, PokeDB Data Export).
 
 ---
 
