@@ -23,30 +23,30 @@
             <div class="nav-sub-menu" id="pokedexSubMenu" style="display: none;">
               <div class="sub-menu-group">
                 <div class="sub-menu-title">Pokédex with stats</div>
-                <a href="#" class="sub-nav-item" onclick="loadPokedex('all', 'All Pokémon'); return false;">All Pokémon</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex('all', 'All Pokémon', event); return false;">All Pokémon</a>
               </div>
               
               <div class="sub-menu-group">
                 <div class="sub-menu-title">Native Pokédexes</div>
-                <a href="#" class="sub-nav-item" onclick="loadPokedex(1, 'National Dex'); return false;">National Dex</a>
-                <a href="#" class="sub-nav-item" onclick="loadPokedex('paldea', 'Scarlet & Violet'); return false;">Scarlet & Violet</a>
-                <a href="#" class="sub-nav-item" onclick="loadPokedex(30, 'Legends: Arceus'); return false;">Legends: Arceus</a>
-                <a href="#" class="sub-nav-item" onclick="loadPokedex(5, 'Brilliant Diamond & Shining Pearl'); return false;">Brilliant Diamond & Shining Pearl</a>
-                <a href="#" class="sub-nav-item" onclick="loadPokedex(27, 'Sword & Shield'); return false;">Sword & Shield</a>
-                <a href="#" class="sub-nav-item" onclick="loadPokedex(26, 'Let\'s Go Pikachu & Eevee'); return false;">Let's Go Pikachu & Eevee</a>
-                <a href="#" class="sub-nav-item" onclick="loadPokedex(21, 'Ultra Sun & Ultra Moon'); return false;">Ultra Sun & Ultra Moon</a>
-                <a href="#" class="sub-nav-item" onclick="loadPokedex(16, 'Sun & Moon'); return false;">Sun & Moon</a>
-                <a href="#" class="sub-nav-item" onclick="loadPokedex(15, 'Omega Ruby & Alpha Sapphire'); return false;">Omega Ruby & Alpha Sapphire</a>
-                <a href="#" class="sub-nav-item" onclick="loadPokedex(12, 'X & Y'); return false;">X & Y</a>
-                <a href="#" class="sub-nav-item" onclick="loadPokedex(9, 'Black 2 & White 2'); return false;">Black 2 & White 2</a>
-                <a href="#" class="sub-nav-item" onclick="loadPokedex(8, 'Black & White'); return false;">Black & White</a>
-                <a href="#" class="sub-nav-item" onclick="loadPokedex(7, 'HeartGold & SoulSilver'); return false;">HeartGold & SoulSilver</a>
-                <a href="#" class="sub-nav-item" onclick="loadPokedex(6, 'Platinum'); return false;">Platinum</a>
-                <a href="#" class="sub-nav-item" onclick="loadPokedex(5, 'Diamond & Pearl'); return false;">Diamond & Pearl</a>
-                <a href="#" class="sub-nav-item" onclick="loadPokedex(2, 'FireRed & LeafGreen'); return false;">FireRed & LeafGreen</a>
-                <a href="#" class="sub-nav-item" onclick="loadPokedex(4, 'Ruby, Sapphire & Emerald'); return false;">Ruby, Sapphire & Emerald</a>
-                <a href="#" class="sub-nav-item" onclick="loadPokedex(3, 'Gold, Silver & Crystal'); return false;">Gold, Silver & Crystal</a>
-                <a href="#" class="sub-nav-item" onclick="loadPokedex(2, 'Red, Blue & Yellow'); return false;">Red, Blue & Yellow</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(1, 'National Dex', event); return false;">National Dex</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex('paldea', 'Scarlet & Violet', event); return false;">Scarlet & Violet</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(30, 'Legends: Arceus', event); return false;">Legends: Arceus</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(5, 'Brilliant Diamond & Shining Pearl', event); return false;">Brilliant Diamond & Shining Pearl</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(27, 'Sword & Shield', event); return false;">Sword & Shield</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(26, 'Let\'s Go Pikachu & Eevee', event); return false;">Let's Go Pikachu & Eevee</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(21, 'Ultra Sun & Ultra Moon', event); return false;">Ultra Sun & Ultra Moon</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(16, 'Sun & Moon', event); return false;">Sun & Moon</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(15, 'Omega Ruby & Alpha Sapphire', event); return false;">Omega Ruby & Alpha Sapphire</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(12, 'X & Y', event); return false;">X & Y</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(9, 'Black 2 & White 2', event); return false;">Black 2 & White 2</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(8, 'Black & White', event); return false;">Black & White</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(7, 'HeartGold & SoulSilver', event); return false;">HeartGold & SoulSilver</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(6, 'Platinum', event); return false;">Platinum</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(5, 'Diamond & Pearl', event); return false;">Diamond & Pearl</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(2, 'FireRed & LeafGreen', event); return false;">FireRed & LeafGreen</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(4, 'Ruby, Sapphire & Emerald', event); return false;">Ruby, Sapphire & Emerald</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(3, 'Gold, Silver & Crystal', event); return false;">Gold, Silver & Crystal</a>
+                <a href="#" class="sub-nav-item" onclick="loadPokedex(2, 'Red, Blue & Yellow', event); return false;">Red, Blue & Yellow</a>
               </div>
 
               <div class="sub-menu-group">
@@ -60,7 +60,29 @@
           </div>
           <a href="#" class="nav-item" onclick="switchPage('moves'); return false;">Moves</a>
           <a href="#" class="nav-item" onclick="switchPage('type-chart'); return false;">Type chart</a>
-          <a href="#" class="nav-item">Abilities</a>
+          <a href="abilities.html" class="nav-item">Abilities</a>
+          
+          <div class="nav-group">
+            <a href="#" class="nav-item" onclick="toggleEggGroupMenu(event)">Egg groups <span class="arrow">▼</span></a>
+            <div class="nav-sub-menu" id="eggGroupSubMenu" style="display: none;">
+              <a href="egg-group.html?group=indeterminate" class="sub-nav-item egg-group-link">Amorphous</a>
+              <a href="egg-group.html?group=bug" class="sub-nav-item egg-group-link">Bug</a>
+              <a href="egg-group.html?group=ditto" class="sub-nav-item egg-group-link">Ditto</a>
+              <a href="egg-group.html?group=dragon" class="sub-nav-item egg-group-link">Dragon</a>
+              <a href="egg-group.html?group=fairy" class="sub-nav-item egg-group-link">Fairy</a>
+              <a href="egg-group.html?group=flying" class="sub-nav-item egg-group-link">Flying</a>
+              <a href="egg-group.html?group=ground" class="sub-nav-item egg-group-link">Ground</a>
+              <a href="egg-group.html?group=humanshape" class="sub-nav-item egg-group-link">Human-Like</a>
+              <a href="egg-group.html?group=mineral" class="sub-nav-item egg-group-link">Mineral</a>
+              <a href="egg-group.html?group=monster" class="sub-nav-item egg-group-link">Monster</a>
+              <a href="egg-group.html?group=no-eggs" class="sub-nav-item egg-group-link">No Eggs</a>
+              <a href="egg-group.html?group=plant" class="sub-nav-item egg-group-link">Plant</a>
+              <a href="egg-group.html?group=water1" class="sub-nav-item egg-group-link">Water 1</a>
+              <a href="egg-group.html?group=water2" class="sub-nav-item egg-group-link">Water 2</a>
+              <a href="egg-group.html?group=water3" class="sub-nav-item egg-group-link">Water 3</a>
+            </div>
+          </div>
+
           <a href="#" class="nav-item">Items</a>
           <a href="#" class="nav-item">Evolution chains</a>
           <a href="#" class="nav-item">Pokémon locations</a>

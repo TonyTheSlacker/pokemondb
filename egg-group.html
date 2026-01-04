@@ -3,10 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pokémon Details</title>
+  <title>Egg Groups - Pokémon Database</title>
   <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="detail.css">
-  <link rel="stylesheet" href="typechart.css">
+  <link rel="stylesheet" href="egg-group.css">
 </head>
 <body>
   <div class="layout">
@@ -18,8 +17,8 @@
       <nav class="sidebar-nav">
         <div class="nav-section">
           <div class="nav-group">
-            <a href="Pokémon Database.html" class="nav-item active">Pokédex <span class="arrow">▼</span></a>
-            <div class="nav-sub-menu" id="pokedexSubMenu">
+            <a href="#" class="nav-item" onclick="togglePokedexMenu(event)">Pokédex <span class="arrow">▼</span></a>
+            <div class="nav-sub-menu" id="pokedexSubMenu" style="display: none;">
               <div class="sub-menu-group">
                 <div class="sub-menu-title">Pokédex with stats</div>
                 <a href="Pokémon Database.html" class="sub-nav-item">All Pokémon</a>
@@ -62,8 +61,8 @@
           <a href="abilities.html" class="nav-item">Abilities</a>
           
           <div class="nav-group">
-            <a href="#" class="nav-item" onclick="toggleEggGroupMenu(event)">Egg groups <span class="arrow">▼</span></a>
-            <div class="nav-sub-menu" id="eggGroupSubMenu" style="display: none;">
+            <a href="#" class="nav-item expanded" onclick="toggleEggGroupMenu(event)">Egg groups <span class="arrow">▼</span></a>
+            <div class="nav-sub-menu" id="eggGroupSubMenu" style="display: block;">
               <a href="egg-group.html?group=indeterminate" class="sub-nav-item egg-group-link">Amorphous</a>
               <a href="egg-group.html?group=bug" class="sub-nav-item egg-group-link">Bug</a>
               <a href="egg-group.html?group=ditto" class="sub-nav-item egg-group-link">Ditto</a>
@@ -82,10 +81,10 @@
             </div>
           </div>
 
-          <a href="Pokémon Database.html" class="nav-item">Items</a>
-          <a href="Pokémon Database.html" class="nav-item">Evolution chains</a>
-          <a href="Pokémon Database.html" class="nav-item">Pokémon locations</a>
-          <a href="Pokémon Database.html" class="nav-item">Sprite gallery</a>
+          <a href="#" class="nav-item">Items</a>
+          <a href="#" class="nav-item">Evolution chains</a>
+          <a href="#" class="nav-item">Pokémon locations</a>
+          <a href="#" class="nav-item">Sprite gallery</a>
         </div>
         
         <div class="nav-label">QUICK LINKS</div>
@@ -99,8 +98,24 @@
     </aside>
 
     <main class="main-content">
-      <div class="container" id="detailContainer">
-        <div class="loading">Loading Pokémon Data...</div>
+      <div class="container">
+        <div class="egg-group-layout" style="display: block;">
+            
+            <div class="egg-content">
+                <div id="eggGroupHeader">
+                    <h1 class="egg-title">Loading...</h1>
+                </div>
+                
+                <div id="eggGroupDescription" class="egg-description">
+                    <!-- Description will be populated here -->
+                </div>
+
+                <h2 class="section-title">The Pokémon</h2>
+                <div class="grid" id="eggPokemonGrid">
+                    <div class="loading">Loading Pokémon...</div>
+                </div>
+            </div>
+        </div>
       </div>
     </main>
   </div>

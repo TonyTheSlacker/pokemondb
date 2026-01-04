@@ -1,0 +1,260 @@
+/* Abilities Page Styles */
+
+/* Hero Section */
+.hero-section {
+  background: linear-gradient(135deg, #1a3a52 0%, #2d5a7b 100%);
+  border-radius: 12px;
+  padding: 3rem 2rem;
+  margin-bottom: 2rem;
+  text-align: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.hero-title {
+  font-size: 3.5rem;
+  font-weight: 700;
+  color: #4ec9ff;
+  margin: 0 0 1rem 0;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.hero-subtitle {
+  font-size: 1.25rem;
+  color: #b8c5d0;
+  margin: 0;
+}
+
+.page-title {
+  font-size: 2.5rem;
+  font-weight: 600;
+  color: #fff;
+  margin: 0 0 1.5rem 0;
+  padding: 0;
+  text-align: center;
+}
+
+.abilities-intro {
+  background: rgba(255, 255, 255, 0.05);
+  border-left: 4px solid #4a9eff;
+  padding: 1rem 1.5rem;
+  margin-bottom: 2rem;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.abilities-intro p {
+  margin: 0;
+  color: #b8c5d0;
+  line-height: 1.6;
+  font-size: 1.05rem;
+}
+
+/* Filter Section */
+.filter-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+}
+
+.filter-section label {
+  font-weight: 600;
+  color: #fff;
+  margin: 0;
+}
+
+.filter-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.filter-label {
+  color: #b8c5d0;
+  font-size: 0.95rem;
+}
+
+.filter-select {
+  background: #1a2332;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s, background-color 0.2s;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 1rem;
+}
+
+.filter-select:hover {
+  border-color: #4a9eff;
+  background-color: #1f2937;
+}
+
+.filter-select:focus {
+  border-color: #4a9eff;
+  box-shadow: 0 0 0 3px rgba(74, 158, 255, 0.1);
+}
+
+/* Abilities Table */
+.abilities-table-container {
+  overflow-x: auto;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.abilities-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.abilities-table thead {
+  background: rgba(74, 158, 255, 0.1);
+  border-bottom: 2px solid #4a9eff;
+}
+
+.abilities-table th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  position: relative;
+  user-select: none;
+}
+
+.abilities-table th.sortable {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.abilities-table th.sortable:hover {
+  background: rgba(74, 158, 255, 0.15);
+}
+
+.sort-arrow {
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+  color: #4a9eff;
+  opacity: 0.5;
+}
+
+.abilities-table th.sorted .sort-arrow {
+  opacity: 1;
+}
+
+.abilities-table tbody tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background-color 0.2s;
+}
+
+.abilities-table tbody tr:hover {
+  background: rgba(74, 158, 255, 0.05);
+}
+
+.abilities-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.abilities-table td {
+  padding: 1rem;
+  color: #b8c5d0;
+  vertical-align: top;
+}
+
+.abilities-table td:first-child {
+  font-weight: 600;
+}
+
+.ability-name {
+  color: #4a9eff;
+  text-decoration: none;
+  transition: color 0.2s;
+  font-weight: 600;
+}
+
+.ability-name:hover {
+  color: #6bb3ff;
+  text-decoration: underline;
+}
+
+.pokemon-count {
+  text-align: center;
+  color: #fff;
+  font-weight: 500;
+}
+
+.gen-column {
+  width: 80px;
+  text-align: center;
+}
+
+.gen-badge {
+  display: inline-block;
+  text-align: center;
+  color: #fff;
+  font-weight: 500;
+}
+
+.loading-cell {
+  text-align: center;
+  padding: 2rem !important;
+  color: #4a9eff;
+  font-style: italic;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .hero-title {
+    font-size: 2.5rem;
+  }
+
+  .hero-subtitle {
+    font-size: 1rem;
+  }
+
+  .page-title {
+    font-size: 2rem;
+  }
+
+  .abilities-intro {
+    padding: 1rem;
+  }
+
+  .abilities-intro p {
+    font-size: 0.95rem;
+  }
+
+  .abilities-table {
+    font-size: 0.875rem;
+  }
+
+  .abilities-table th,
+  .abilities-table td {
+    padding: 0.75rem 0.5rem;
+  }
+
+  .filter-section {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .gen-column {
+    width: 60px;
+  }
+}
+
+/* Hidden class for filtering */
+.hidden {
+  display: none;
+}
