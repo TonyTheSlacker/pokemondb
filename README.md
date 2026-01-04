@@ -1,24 +1,26 @@
-# Pokémon Database(CURRENTLY UPDATING AND FIXING BUGS PLEASE DON'T CLONE THIS REPO YET)
+# Pokémon Database
 
 ![Language](https://img.shields.io/badge/Language-HTML5%20%2F%20CSS3%20%2F%20JavaScript-E34C26?logo=html5&logoColor=white)
 ![API](https://img.shields.io/badge/API-PokéAPI-FFCA12?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iI0ZGQ0ExMiIgZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMjAgMTAgMjAgMjAtNC40OCAyMC0xMFM0OC4yMyAyIDEyIDJ6Ii8+PC9zdmc+)
 ![UI](https://img.shields.io/badge/UI-Responsive%20Design-61DAFB)
 ![Storage](https://img.shields.io/badge/Storage-Client--side%20Caching-FCC624)
 
-A comprehensive, interactive **Pokémon Database** web application that provides detailed information about all 1,000+ Pokémon across multiple generations. Search, filter, and explore Pokémon by type, ability, egg group, and more with a modern, responsive interface.
+A comprehensive, interactive **Pokémon Database** web application that provides detailed information about 1,000+ Pokémon across multiple generations. Search, filter, and explore Pokémon by type, ability, egg group, and more with a modern, responsive interface.
 
-Unlike static Pokédex sites, this application features **dynamic filtering**, **form variants**, **evolution chains**, and **cross-linked navigation** powered by the PokeAPI.
+The site is powered primarily by PokéAPI, with fallbacks for missing dex/move text and for Gen 8/9 encounters.
 
 ---
 
 ## ⚡ Key Features
 
-* **Complete Pokédex Coverage:** Browse all 1,025 Pokémon with detailed stats, abilities, moves, and breeding information.
+* **Complete Pokédex Coverage:** Browse 1,000+ Pokémon with detailed stats, abilities, moves, and breeding information.
 * **Multi-Pokedex Support:** Switch between different regional Pokédexes (National, Scarlet & Violet, Sword & Shield, Legends: Arceus, etc.).
 * **Advanced Search & Filtering:** Filter Pokémon by type, ability, egg group, or search by name.
 * **Form Variants Display:** View all Pokémon forms including Mega Evolutions, Alola forms, Galar forms, and Origin forms.
 * **Evolution Chain Visualization:** See complete evolution chains with branching paths and conditional evolutions.
 * **Move Sets:** Browse all moves by type, damage class, and effectiveness with detailed move information.
+* **Pokémon Locations (Where to find):** Pokémon detail pages include a PokémonDB-style “Where to find” section under the moveset.
+* **Locations Guide + Location Details:** Browse locations by region on the guide page, then open a location detail page to see encounter tables.
 * **Type Effectiveness Chart:** Interactive chart showing type matchups and super-effective relationships.
 * **Abilities Database:** Complete ability list with affected Pokémon and detailed descriptions.
 * **Egg Groups & Breeding Info:** Find compatible breeding pairs and breeding mechanics for all Pokémon.
@@ -36,18 +38,25 @@ Unlike static Pokédex sites, this application features **dynamic filtering**, *
 * **URL Parameters:** State management via query strings for shareable links.
 
 ### Data Source
-The application integrates with the **PokéAPI**, a free REST API providing comprehensive Pokémon data:
-* 1,025+ Pokémon with full stats and attributes
-* Complete move sets and type effectiveness data
-* Evolution chains and breeding information
-* Regional Pokédex listings across all games
+The application integrates multiple community data sources:
+* **PokéAPI** (REST) — primary source for Pokémon, species, moves, evolution chains, etc.
+* **GraphQL-Pokemon** (favware/graphql-pokemon) — fallback for missing dex flavor text and some move fields.
+* **PokeDB Data Export** — used to backfill Gen 8/9 wild encounter tables where PokéAPI is incomplete (Galar/Hisui/Paldea).
+
+Gen 8/9 encounter data is loaded from a compact local index:
+* `data/pokedb-encounters-g8g9.json` — compact encounters index
+* `data/pokedb-encounters-g8g9.js` — wraps the JSON into `window.__POKEDB_ENCOUNTERS_G8G9__` for `file://` compatibility
+  * preloaded by `pokemon.html` and `location-detail.html`
 
 ### Core Components
 * **`Pokémon Database.html`:** Main hub with grid view, type filters, and move/type chart tabs.
 * **`pokemon.html`:** Detailed view for individual Pokémon with stats, forms, abilities, and evolution chains.
+  * Includes a PokémonDB-like “Where to find …” section below the moveset.
 * **`abilities.html`:** Searchable ability database with affected Pokémon listings.
 * **`egg-group.html`:** Breeding database organized by egg group.
-* **`script.js`:** Core logic handling API calls, filtering, rendering, and navigation.
+* **`locations.html`:** Locations guide page (region tabs → locations list).
+* **`location-detail.html`:** Location detail page (encounter tables + links back to Pokémon pages).
+* **`script.js`:** Core logic handling API calls, caching, rendering, and navigation.
 * **`style.css`:** Base styling with dark theme and responsive breakpoints.
 * **Detail Pages CSS:** Specialized styling for pokemon detail, abilities, and egg groups.
 
@@ -76,6 +85,11 @@ Simply open the **`Pokémon Database.html`** file in any modern web browser:
 3. Start exploring!
 ```
 
+Tip: This project works when opened via `file://`, but running a local server avoids browser restrictions and tends to be more reliable.
+For example:
+* VS Code “Live Server” extension, or
+* `python -m http.server` from the project folder.
+
 ### Browser Requirements
 * Chrome 60+
 * Firefox 55+
@@ -91,16 +105,26 @@ PokemonDB/
 ├── abilities.html             # Abilities database
 ├── ability-detail.html        # Ability detail view
 ├── egg-group.html             # Egg group database
-├── locations.html             # Location data (placeholder)
-├── script.js                  # Core JavaScript logic (2100+ lines)
+├── locations.html             # Locations guide page
+├── location-detail.html       # Location detail view
+├── script.js                  # Core JavaScript logic
 ├── style.css                  # Base styling
 ├── detail.css                 # Pokémon detail styling
 ├── abilities.css              # Abilities page styling
 ├── ability-detail.css         # Ability detail styling
 ├── egg-group.css              # Egg group styling
+├── locations-guide.css        # Locations guide styling
+├── locations.css              # Location detail styling
 ├── moves.css                  # Moves section styling
 ├── moves-full.css             # Full moves page styling
+├── move-detail.html           # Move detail view
+├── move-detail.css            # Move detail styling
 ├── typechart.css              # Type chart styling
+├── data/
+│   ├── pokedb-encounters-g8g9.json  # Compact Gen 8/9 encounters index
+│   └── pokedb-encounters-g8g9.js    # JS wrapper for file:// (window.__POKEDB_ENCOUNTERS_G8G9__)
+├── tools/
+│   └── build_pokedb_encounters.py  # Builds the compact encounters index
 └── README.md                  # This file
 ```
 
@@ -109,7 +133,7 @@ PokemonDB/
 ## 📊 Supported Features
 
 ### Pokédex Coverage
-* **National Pokédex** - All 1,025 Pokémon
+* **National Pokédex** - All Pokémon currently available in PokéAPI
 * **Regional Pokédexes** - Scarlet & Violet, Legends: Arceus, Sword & Shield, and 17+ others
 * **Specialized Lists** - Shinydex, Competitive Pokédex, Size Pokédex, Pokémon GO
 
@@ -207,6 +231,24 @@ This project pulls data from multiple community sources:
 The Gen 8/9 encounters index is generated into [data/pokedb-encounters-g8g9.json](data/pokedb-encounters-g8g9.json) using [tools/build_pokedb_encounters.py](tools/build_pokedb_encounters.py).
 PokeDB’s export is provided for educational/research/non-commercial use and requests attribution; see their Data Export page for details.
 
+### Regenerating encounter data
+If PokeDB updates their export (or you want to refresh locally):
+
+1) Build the compact JSON index:
+```powershell
+python tools/build_pokedb_encounters.py
+```
+
+2) Update the `file://` wrapper JS (so pages can load the index without fetching local JSON):
+```powershell
+$json = Get-Content data/pokedb-encounters-g8g9.json -Raw
+"window.__POKEDB_ENCOUNTERS_G8G9__=$json" | Set-Content data/pokedb-encounters-g8g9.js -Encoding UTF8
+```
+
+Notes:
+* The index is intentionally limited to **Galar / Hisui / Paldea** and mainline versions used by this site (SwSh / PLA / SV).
+* Some encounter mechanics are simplified for display.
+
 ---
 
 ## 🐛 Known Limitations
@@ -215,6 +257,7 @@ PokeDB’s export is provided for educational/research/non-commercial use and re
 * Move tutors and event-exclusive moves may have limited availability info
 * Some encounter mechanics are simplified when displayed in tables (e.g., SV probability systems, raids)
 * Some older generation form data may be sparse in PokéAPI
+* Pokémon: Legends Z-A location/encounter rows are not available yet (placeholder messaging)
 
 ---
 
@@ -222,7 +265,7 @@ PokeDB’s export is provided for educational/research/non-commercial use and re
 
 * [ ] Move tutor database
 * [ ] Item encyclopedia
-* [ ] Pokémon location finder
+* [ ] Expand encounter coverage (more regions/versions)
 * [ ] Battle simulator
 * [ ] Build planner with competitive move sets
 * [ ] Offline mode with local caching
@@ -238,4 +281,4 @@ If you redistribute this project, make sure you comply with the terms of any ups
 
 ---
 
-**Created with ❤️ for Pokémon enthusiasts everywhere.**
+**Created as a fan/learning project.**
