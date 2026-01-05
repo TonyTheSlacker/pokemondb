@@ -1,11 +1,11 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Move Details - Pokémon Database</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="move-detail.css">
+  <title>Ability Details - Pokémon Database</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/ability-detail.css">
 </head>
 <body>
   <div class="layout">
@@ -54,8 +54,8 @@
               </div>
             </div>
           </div>
-          <a href="Pokémon Database.html#moves" class="nav-item">Moves</a>
-          <a href="Pokémon Database.html#type-chart" class="nav-item">Type chart</a>
+          <a href="../index.html#moves" class="nav-item">Moves</a>
+          <a href="../index.html#type-chart" class="nav-item">Type chart</a>
           <a href="abilities.html" class="nav-item">Abilities</a>
           
           <div class="nav-group">
@@ -73,76 +73,62 @@
         
         <div class="nav-label">QUICK LINKS</div>
         <div class="nav-section">
-          <a href="Pokémon Database.html" class="nav-item">National Pokédex</a>
-          <a href="Pokémon Database.html" class="nav-item">Pokémon list with stats</a>
+          <a href="../index.html" class="nav-item">National Pokédex</a>
+          <a href="../index.html" class="nav-item">Pokémon list with stats</a>
         </div>
       </nav>
     </aside>
 
     <main class="main-content">
       <div class="container">
-        <div class="move-header">
-          <div>
-            <h1 class="move-title" id="moveTitle">Loading...</h1>
-            <div class="move-chips" id="moveChips"></div>
-          </div>
-          <a href="Pokémon Database.html#moves" class="back-link">← Back to Moves</a>
+        <div class="ability-header">
+          <h1 class="ability-title" id="abilityTitle">Loading...</h1>
+          <a href="abilities.html" class="back-link">← Back to Abilities</a>
         </div>
 
-        <div class="move-contents">
-          <span class="contents-label">Contents</span>
-          <a class="contents-link" href="#move-data">Move data</a>
-          <a class="contents-link" href="#effects">Effects</a>
-          <a class="contents-link" href="#game-descriptions">Game descriptions</a>
-          <a class="contents-link" href="#learned-by">Learned by</a>
-        </div>
-
-        <div class="move-two-column">
-          <div class="move-left-column">
-            <section class="detail-section" id="move-data">
-              <h2>Move data</h2>
-              <div class="data-table" id="moveDataTable">Loading...</div>
+        <div class="ability-two-column">
+          <div class="ability-left-column">
+            <section class="detail-section">
+              <h2>Effect</h2>
+              <div class="effect-text" id="effectText">Loading...</div>
             </section>
 
-            <section class="detail-section" id="effects">
-              <h2>Effects</h2>
-              <div class="effect-text" id="moveEffectText">Loading...</div>
-            </section>
-          </div>
-
-          <div class="move-right-column">
-            <section class="detail-section" id="game-descriptions">
+            <section class="detail-section">
               <h2>Game descriptions</h2>
-              <div id="moveGameDescriptions" class="game-descriptions">Loading...</div>
+              <div id="gameDescriptions" class="game-descriptions">
+                Loading...
+              </div>
             </section>
 
             <section class="detail-section">
               <h2>Other languages</h2>
-              <div id="moveOtherLanguages" class="languages-table">Loading...</div>
+              <div id="otherLanguages" class="languages-table">
+                Loading...
+              </div>
+            </section>
+          </div>
+
+          <div class="ability-right-column">
+            <section class="detail-section">
+              <h2 id="regularAbilityTitle">Pokémon with this ability</h2>
+              <div id="pokemonWithAbility" class="pokemon-grid">
+                Loading Pokémon...
+              </div>
+            </section>
+
+            <section class="detail-section" id="hiddenAbilitySection" style="display: none;">
+              <h2 id="hiddenAbilityTitle">As a hidden ability</h2>
+              <div id="pokemonWithHiddenAbility" class="pokemon-grid">
+                Loading Pokémon...
+              </div>
             </section>
           </div>
         </div>
-
-        <section class="detail-section" id="learned-by">
-          <h2 id="learnedByTitle">Learned by</h2>
-          <div id="learnedByNote" class="learned-note"></div>
-
-          <div class="learned-section" id="learnedByLevelUpSection">
-            <h3 class="learned-subtitle" id="learnedByLevelUpTitle">Learnt by level up</h3>
-            <div class="learned-desc">These Pokémon learn this move by leveling up.</div>
-            <div id="learnedByLevelUp" class="learned-grid">Loading...</div>
-          </div>
-
-          <div class="learned-section" id="learnedByBreedingSection">
-            <h3 class="learned-subtitle" id="learnedByBreedingTitle">Learnt by breeding</h3>
-            <div class="learned-desc">These Pokémon can learn this move as an egg move.</div>
-            <div id="learnedByBreeding" class="learned-grid">Loading...</div>
-          </div>
-        </section>
       </div>
     </main>
   </div>
 
-  <script src="script.js"></script>
+  <script src="../js/script.js"></script>
 </body>
 </html>
+

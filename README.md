@@ -46,18 +46,19 @@ The application integrates multiple community data sources:
 Gen 8/9 encounter data is loaded from a compact local index:
 * `data/pokedb-encounters-g8g9.json` — compact encounters index
 * `data/pokedb-encounters-g8g9.js` — wraps the JSON into `window.__POKEDB_ENCOUNTERS_G8G9__` for `file://` compatibility
-  * preloaded by `pokemon.html` and `location-detail.html`
+  * preloaded by `pages/pokemon-detail.html` and `pages/location-detail.html`
 
 ### Core Components
-* **`Pokémon Database.html`:** Main hub with grid view, type filters, and move/type chart tabs.
-* **`pokemon.html`:** Detailed view for individual Pokémon with stats, forms, abilities, and evolution chains.
+* **`index.html`:** Main hub with grid view, type filters, and move/type chart tabs.
+* **`pages/pokemon-detail.html`:** Detailed view for individual Pokémon with stats, forms, abilities, and evolution chains.
   * Includes a PokémonDB-like “Where to find …” section below the moveset.
-* **`abilities.html`:** Searchable ability database with affected Pokémon listings.
-* **`egg-group.html`:** Breeding database organized by egg group.
-* **`locations.html`:** Locations guide page (region tabs → locations list).
-* **`location-detail.html`:** Location detail page (encounter tables + links back to Pokémon pages).
-* **`script.js`:** Core logic handling API calls, caching, rendering, and navigation.
-* **`style.css`:** Base styling with dark theme and responsive breakpoints.
+* **`pages/abilities.html`:** Searchable ability database with affected Pokémon listings.
+* **`pages/egg-group.html`:** Breeding database organized by egg group.
+* **`pages/locations.html`:** Locations guide page (region tabs → locations list).
+* **`pages/location-detail.html`:** Location detail page (encounter tables + links back to Pokémon pages).
+* **`js/script.js`:** Small loader that includes the split app scripts in order.
+  * `js/script.part1.js` … `js/script.part4.js` contain the actual app logic.
+* **`css/style.css`:** Base styling with dark theme and responsive breakpoints.
 * **Detail Pages CSS:** Specialized styling for pokemon detail, abilities, and egg groups.
 
 ### Key Algorithms & Features
@@ -78,10 +79,10 @@ function calculateTypeDefenses(types) {
 ## 🚀 Installation & Usage
 
 ### Quick Start (No Installation Required!)
-Simply open the **`Pokémon Database.html`** file in any modern web browser:
+Simply open the **`index.html`** file in any modern web browser:
 ```
 1. Download/clone the project
-2. Open: Pokémon Database.html
+2. Open: index.html
 3. Start exploring!
 ```
 
@@ -100,32 +101,39 @@ For example:
 ### Project Structure
 ```
 PokemonDB/
-├── Pokémon Database.html      # Main Pokédex page
-├── pokemon.html               # Pokémon detail view
-├── abilities.html             # Abilities database
-├── ability-detail.html        # Ability detail view
-├── egg-group.html             # Egg group database
-├── locations.html             # Locations guide page
-├── location-detail.html       # Location detail view
-├── script.js                  # Core JavaScript logic
-├── style.css                  # Base styling
-├── detail.css                 # Pokémon detail styling
-├── abilities.css              # Abilities page styling
-├── ability-detail.css         # Ability detail styling
-├── egg-group.css              # Egg group styling
-├── locations-guide.css        # Locations guide styling
-├── locations.css              # Location detail styling
-├── moves.css                  # Moves section styling
-├── moves-full.css             # Full moves page styling
-├── move-detail.html           # Move detail view
-├── move-detail.css            # Move detail styling
-├── typechart.css              # Type chart styling
+├── index.html
+├── Pokémon Database.html
+├── pages/
+│   ├── abilities.html
+│   ├── ability-detail.html
+│   ├── egg-group.html
+│   ├── locations.html
+│   ├── location-detail.html
+│   ├── move-detail.html
+│   └── pokemon-detail.html
+├── js/
+│   ├── script.js
+│   ├── script.part1.js
+│   ├── script.part2.js
+│   ├── script.part3.js
+│   └── script.part4.js
+├── css/
+│   ├── abilities.css
+│   ├── ability-detail.css
+│   ├── detail.css
+│   ├── egg-group.css
+│   ├── locations-guide.css
+│   ├── locations.css
+│   ├── move-detail.css
+│   ├── moves-full.css
+│   ├── moves.css
+│   ├── style.css
+│   └── typechart.css
 ├── data/
-│   ├── pokedb-encounters-g8g9.json  # Compact Gen 8/9 encounters index
-│   └── pokedb-encounters-g8g9.js    # JS wrapper for file:// (window.__POKEDB_ENCOUNTERS_G8G9__)
-├── tools/
-│   └── build_pokedb_encounters.py  # Builds the compact encounters index
-└── README.md                  # This file
+│   ├── pokedb-encounters-g8g9.json
+│   └── pokedb-encounters-g8g9.js
+└── tools/
+  └── build_pokedb_encounters.py
 ```
 
 ---
@@ -177,14 +185,14 @@ PokemonDB/
 ## 🔄 Navigation Flow
 
 ```
-Pokémon Database.html (Main Hub)
-    ├── [Click Pokemon] → pokemon.html?id=X (Detail View)
+index.html (Main Hub)
+  ├── [Click Pokemon] → pages/pokemon-detail.html?id=X (Detail View)
     │   ├── [Previous/Next] → Navigate adjacent Pokémon
     │   ├── [Form Tab] → Switch between variants
-    │   └── [Ability Link] → ability-detail.html?ability=Y
+  │   └── [Ability Link] → pages/ability-detail.html?ability=Y
     │
-    ├── [Abilities Tab] → abilities.html
-    │   └── [Pokemon Card] → pokemon.html?id=X
+  ├── [Abilities Tab] → pages/abilities.html
+  │   └── [Pokemon Card] → pages/pokemon-detail.html?id=X
     │
     ├── [Type Chart Tab] → Type effectiveness matrix
     │
@@ -195,8 +203,8 @@ Pokémon Database.html (Main Hub)
     ├── [Sidebar Pokedex] → Switch between regional dexes
     │   └── Reload main page with selected dex
     │
-    └── [Egg Groups] → egg-group.html?group=Z
-        └── [Pokemon Card] → pokemon.html?id=X
+    └── [Egg Groups] → pages/egg-group.html?group=Z
+      └── [Pokemon Card] → pages/pokemon-detail.html?id=X
 ```
 
 ---
