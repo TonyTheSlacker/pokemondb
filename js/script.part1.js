@@ -903,6 +903,15 @@ function getLocationNameParts(locationSlug) {
     };
 }
 
+function formatWhereToFindLocationTitle(locationSlug) {
+    const parts = getLocationNameParts(locationSlug);
+    const normalizeNums = (s) => String(s || '').replace(/\b0+(\d+)\b/g, (_, n) => String(parseInt(n, 10)));
+    // Match PokémonDB-ish naming: only prefix newer-region routes/areas where names collide.
+    const needsRegionPrefix = ['alola', 'galar', 'hisui', 'paldea'].includes(parts.region);
+    const title = normalizeNums(parts.title);
+    return needsRegionPrefix && parts.regionTitle ? `${parts.regionTitle} ${title}` : title;
+}
+
 // PokeDB encounter fallback (https://pokedb.org/data-export)
 // Used only when PokeAPI returns empty encounter tables for Gen 8/9 regions.
 const POKEDB_ENCOUNTERS_INDEX_URL = `${ROOT_PREFIX}data/pokedb-encounters-g8g9.json`;
@@ -928,11 +937,22 @@ const WHERE_TO_FIND_GROUPS = [
     { gen: 7, labels: ['Ultra Sun', 'Ultra Moon'], versions: ['ultra-sun', 'ultra-moon'] },
     { gen: 7, labels: ["Let's Go Pikachu", "Let's Go Eevee"], versions: ['lets-go-pikachu', 'lets-go-eevee'] },
     { gen: 8, labels: ['Sword', 'Shield'], versions: ['sword', 'shield'] },
+    // PokémonDB splits SwSh DLC into separate rows.
+    // These are pseudo-versions handled specially in rendering.
+    { gen: 8, labels: ['The Isle of Armor'], versions: ['isle-of-armor'] },
+    { gen: 8, labels: ['The Crown Tundra'], versions: ['crown-tundra'] },
     { gen: 8, labels: ['Brilliant Diamond', 'Shining Pearl'], versions: ['brilliant-diamond', 'shining-pearl'] },
     { gen: 8, labels: ['Legends: Arceus'], versions: ['legends-arceus'] },
     { gen: 9, labels: ['Scarlet', 'Violet'], versions: ['scarlet', 'violet'] },
     { gen: 9, labels: ['Legends: Z-A'], versions: ['legends-z-a'] }
 ];
+
+function getPokeDbLocationRegion(locationSlug) {
+    const idx = window.__POKEDB_ENCOUNTERS_G8G9__;
+    const map = idx?.locationRegions;
+    if (!map) return null;
+    return map?.[locationSlug] || null;
+}
 
 function getSpeciesIntroducedGen(species) {
     const url = species?.generation?.url;
@@ -1053,39 +1073,108 @@ function renderWhereToFindSectionPlaceholderHtml(pokemon) {
     `;
 }
 
-function renderWhereToFindRowsHtml(groups, byVersion, species) {
+function expandWhereToFindGroupsToRows(groups) {
+    const out = [];
+    const list = Array.isArray(groups) ? groups : [];
+    for (const g of list) {
+        const versions = Array.isArray(g?.versions) ? g.versions : [];
+        const labels = Array.isArray(g?.labels) ? g.labels : [];
+        for (let i = 0; i < versions.length; i++) {
+            const version = versions[i];
+            if (!version) continue;
+            const label = labels[i] || slugToTitle(version);
+            out.push({ gen: g?.gen || null, version, label });
+        }
+    }
+    return out;
+}
+
+function getEvolutionAncestorsFromChain(chainNode, targetSpeciesName) {
+    const target = String(targetSpeciesName || '').toLowerCase();
+    if (!chainNode || !target) return [];
+
+    let found = null;
+    const walk = (node, path) => {
+        if (!node || found) return;
+        const name = String(node?.species?.name || '').toLowerCase();
+        if (!name) return;
+        if (name === target) {
+            found = path.slice();
+            return;
+        }
+        const nextPath = path.concat([name]);
+        const kids = Array.isArray(node?.evolves_to) ? node.evolves_to : [];
+        for (const k of kids) walk(k, nextPath);
+    };
+
+    walk(chainNode, []);
+    return Array.isArray(found) ? found : [];
+}
+
+function renderWhereToFindRowsHtml(rows, byVersion, species, evoAncestors) {
     const isSpecial = !!(species?.is_mythical || species?.is_legendary);
     const introGen = getSpeciesIntroducedGen(species);
+    const ancestors = Array.isArray(evoAncestors) ? evoAncestors : [];
 
-    const rows = groups.map(g => {
-        const genTooEarly = introGen && g.gen < introGen;
+    const list = (Array.isArray(rows) ? rows : []).map(r => {
+        const genTooEarly = introGen && r.gen && r.gen < introGen;
 
-        const locations = new Set();
-        for (const v of g.versions) {
-            const set = byVersion.get(v);
-            if (set) for (const loc of set) locations.add(loc);
+        const isSwShBase = r.version === 'sword' || r.version === 'shield';
+        const isSwShDlc = r.version === 'isle-of-armor' || r.version === 'crown-tundra';
+
+        let locations = byVersion.get(r.version) || new Set();
+
+        // For DLC pseudo-rows, union Sword+Shield and filter by location region.
+        if (isSwShDlc) {
+            const union = new Set();
+            for (const loc of (byVersion.get('sword') || [])) union.add(loc);
+            for (const loc of (byVersion.get('shield') || [])) union.add(loc);
+            const filtered = new Set();
+            for (const loc of union) {
+                const region = getPokeDbLocationRegion(loc);
+                if (region === r.version) filtered.add(loc);
+            }
+            locations = filtered;
+        }
+
+        // For Sword/Shield base rows, hide DLC locations so they don't inflate the main list.
+        if (isSwShBase && locations.size) {
+            const filtered = new Set();
+            for (const loc of locations) {
+                const region = getPokeDbLocationRegion(loc);
+                if (region === 'isle-of-armor' || region === 'crown-tundra') continue;
+                filtered.add(loc);
+            }
+            locations = filtered;
         }
 
         let rightHtml = '';
 
         if (genTooEarly) {
             rightHtml = `<span class="details-muted">Not available in this game</span>`;
-        } else if (g.versions.includes('legends-z-a')) {
+        } else if (r.version === 'legends-z-a') {
             rightHtml = `<span class="details-muted">Location data not yet available</span>`;
         } else if (locations.size) {
-            const locList = Array.from(locations).slice(0, 8);
+            const locList = Array.from(locations).sort((a, b) => String(a).localeCompare(String(b)));
             const links = locList
-                .map(loc => `<a class="wherefind-link" href="${PAGES_PREFIX}location-detail.html?location=${encodeURIComponent(loc)}">${slugToTitle(loc)}</a>`)
+                .map(loc => `<a class="wherefind-link" href="${PAGES_PREFIX}location-detail.html?location=${encodeURIComponent(loc)}">${formatWhereToFindLocationTitle(loc)}</a>`)
                 .join(', ');
-            const more = locations.size > locList.length ? ` <span class="details-muted">(+${locations.size - locList.length} more)</span>` : '';
-            rightHtml = `${links}${more}`;
+            rightHtml = `${links}`;
         } else if (isSpecial) {
             rightHtml = `Trade/migrate from another game`;
+        } else if (ancestors.length) {
+            const links = ancestors
+                .map(name => {
+                    const title = formatName(name);
+                    return `<a class="wherefind-link" href="${PAGES_PREFIX}pokemon-detail.html?id=${encodeURIComponent(name)}">${title}</a>`;
+                })
+                .join('/');
+            rightHtml = `Evolve ${links}`;
         } else {
             rightHtml = `<span class="details-muted">Not available in this game</span>`;
         }
 
-        const left = g.labels.map(l => `<div class="wherefind-game">${l}</div>`).join('');
+        const left = `<div class="wherefind-game">${r.label}</div>`;
         return `
             <div class="wherefind-row">
                 <div class="wherefind-games">${left}</div>
@@ -1094,10 +1183,10 @@ function renderWhereToFindRowsHtml(groups, byVersion, species) {
         `;
     }).join('');
 
-    return rows || `<div class="learnset-empty">No location data available.</div>`;
+    return list || `<div class="learnset-empty">No location data available.</div>`;
 }
 
-async function setupWhereToFindSection(root, pokemon, species) {
+async function setupWhereToFindSection(root, pokemon, species, evo) {
     const section = root?.querySelector(`.wherefind-section[data-pokemon-id="${pokemon?.id}"]`);
     if (!section) return;
 
@@ -1106,10 +1195,14 @@ async function setupWhereToFindSection(root, pokemon, species) {
 
     const introGen = getSpeciesIntroducedGen(species);
     const groups = WHERE_TO_FIND_GROUPS.filter(g => !introGen || g.gen >= introGen);
+    const rows = expandWhereToFindGroupsToRows(groups);
 
     const byVersion = await buildWhereToFindByVersion(pokemon?.id, pokemon?.name);
 
-    body.innerHTML = renderWhereToFindRowsHtml(groups, byVersion, species);
+    const targetSpeciesName = species?.name || pokemon?.species?.name || pokemon?.name;
+    const evoAncestors = getEvolutionAncestorsFromChain(evo?.chain, targetSpeciesName);
+
+    body.innerHTML = renderWhereToFindRowsHtml(rows, byVersion, species, evoAncestors);
 }
 
 function pokedbMethodToAppMethod(method) {
@@ -1126,6 +1219,10 @@ async function loadPokeDbEncountersIndex() {
     if (pokedbEncountersIndexPromise) return pokedbEncountersIndexPromise;
     pokedbEncountersIndexPromise = fetch(POKEDB_ENCOUNTERS_INDEX_URL)
         .then(r => (r.ok ? r.json() : null))
+        .then(idx => {
+            if (idx && !window.__POKEDB_ENCOUNTERS_G8G9__) window.__POKEDB_ENCOUNTERS_G8G9__ = idx;
+            return idx;
+        })
         .catch(() => null);
     return pokedbEncountersIndexPromise;
 }
@@ -1264,11 +1361,10 @@ async function loadAndRenderLocation(locationNameOrId) {
             }
         }
 
-        // If PokeAPI provides no encounters for Gen 8/9 regions, fall back to a compact local
-        // index generated from PokeDB Data Export (non-commercial; see README).
-        const regionKey = String(regionName || '').toLowerCase();
+        // If PokeAPI provides no encounters (or the location is not present in PokeAPI),
+        // fall back to a compact local index generated from PokeDB Data Export.
         let usedPokeDbFallback = false;
-        if (!rows.length && (regionKey === 'galar' || regionKey === 'hisui' || regionKey === 'paldea')) {
+        if (!rows.length) {
             try {
                 const pokedbRows = await fetchPokeDbEncounterRowsForLocation(location?.name || locationNameOrId);
                 if (pokedbRows.length) {

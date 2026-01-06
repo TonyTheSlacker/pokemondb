@@ -11,8 +11,30 @@ URL_LOCATION_AREAS = f"{POKEDB_EXPORT_BASE}/data_export_location_areas_json"
 URL_ENCOUNTERS = f"{POKEDB_EXPORT_BASE}/data_export_encounters_json"
 URL_LOCATIONS = f"{POKEDB_EXPORT_BASE}/data_export_locations_json"
 
-TARGET_REGIONS = {"galar", "hisui", "paldea"}
-TARGET_VERSIONS = {"sword", "shield", "legends-arceus", "scarlet", "violet"}
+# Region identifiers used by PokeDB's export tables.
+# NOTE: DLC areas appear as their own region_area_identifier (e.g. Isle of Armor, Crown Tundra).
+TARGET_REGIONS = {
+    "galar",
+    "isle-of-armor",
+    "crown-tundra",
+    "hisui",
+    "paldea",
+    # Gen 7/8 games where PokeAPI encounter tables are commonly missing:
+    "kanto",   # Let's Go
+    "sinnoh",  # BDSP
+}
+
+TARGET_VERSIONS = {
+    "sword",
+    "shield",
+    "legends-arceus",
+    "scarlet",
+    "violet",
+    "lets-go-pikachu",
+    "lets-go-eevee",
+    "brilliant-diamond",
+    "shining-pearl",
+}
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -20,6 +42,7 @@ DATA_DIR = os.path.join(ROOT, "data")
 CACHE_DIR = os.path.join(DATA_DIR, ".cache")
 
 OUT_FILE = os.path.join(DATA_DIR, "pokedb-encounters-g8g9.json")
+OUT_JS_FILE = os.path.join(DATA_DIR, "pokedb-encounters-g8g9.js")
 
 
 def download(url: str, dest_path: str) -> None:
@@ -79,13 +102,16 @@ def main() -> int:
         locations = json.load(f)
 
     target_locations = set()
+    location_to_region_area = {}
     for row in locations:
         loc_id = row.get("identifier")
         region = row.get("region_area_identifier")
         if not loc_id or not region:
             continue
-        if str(region).lower() in TARGET_REGIONS:
+        region_norm = str(region).lower()
+        if region_norm in TARGET_REGIONS:
             target_locations.add(loc_id)
+            location_to_region_area[loc_id] = region_norm
 
     print("Loading location areas...")
     with open(loc_areas_path, "r", encoding="utf-8") as f:
@@ -186,7 +212,10 @@ def main() -> int:
     meta = {
         "source": "PokeDB Data Export",
         "sourceUrl": "https://pokedb.org/data-export",
-        "generatedAt": datetime.datetime.now(datetime.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        "generatedAt": datetime.datetime.now(datetime.timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z"),
         "regions": sorted(TARGET_REGIONS),
         "versions": sorted(TARGET_VERSIONS),
         "tables": {
@@ -197,11 +226,24 @@ def main() -> int:
         "note": "Provided for educational/research/non-commercial use per PokeDB guidelines; see sourceUrl for terms.",
     }
 
-    payload = {"_meta": meta, "locations": out_locations}
+    payload = {
+        "_meta": meta,
+        "locations": out_locations,
+        # Allows the frontend to split SwSh base game vs DLC rows (and similar future grouping)
+        # without hardcoding location slug lists.
+        "locationRegions": {k: location_to_region_area.get(k) for k in out_locations.keys()},
+    }
 
     print(f"Writing {OUT_FILE} (locations={len(out_locations)})")
     with open(OUT_FILE, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, separators=(",", ":"))
+
+    # Also write a JS wrapper for file:// browsing (fetching local JSON is often blocked).
+    print(f"Writing {OUT_JS_FILE}")
+    with open(OUT_JS_FILE, "w", encoding="utf-8") as f:
+        f.write("window.__POKEDB_ENCOUNTERS_G8G9__ = ")
+        f.write(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
+        f.write(";\n")
 
     print("Done.")
     return 0

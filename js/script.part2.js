@@ -4,6 +4,79 @@ const pokemonSpeciesCache = {};
 const pokemonFormCache = {};
 let currentPokemonMoves = {};
 
+// Tracks the currently selected Pokédex so we can render per-game sprites in the grid.
+let currentPokedexContext = { id: 'all', name: 'All Pokémon' };
+
+function getPokedexSpritePreset(dexId, dexName) {
+  const id = dexId;
+  const name = String(dexName || '').toLowerCase();
+
+  // Default / "All Pokémon"
+  if (id === 'all' || name.includes('all pok')) return { kind: 'default' };
+
+  // Gen 9
+  if (id === 'paldea' || (name.includes('scarlet') && name.includes('violet'))) return { kind: 'home' };
+
+  // Gen 8
+  if (name.includes('brilliant diamond') && name.includes('shining pearl')) {
+    return { kind: 'versions', gen: 'generation-viii', game: 'brilliant-diamond-shining-pearl' };
+  }
+  if (name.includes('sword') && name.includes('shield')) return { kind: 'versions', gen: 'generation-viii', game: 'icons' };
+  if (name.includes('legends') && name.includes('arceus')) return { kind: 'versions', gen: 'generation-viii', game: 'icons' };
+
+  // Gen 7
+  if (name.includes("let's go")) return { kind: 'versions', gen: 'generation-vii', game: 'icons' };
+  if (name.includes('ultra sun') && name.includes('ultra moon')) {
+    return { kind: 'versions', gen: 'generation-vii', game: 'ultra-sun-ultra-moon' };
+  }
+  // PokeAPI sprite sets don't have a distinct "sun-moon" group for many mons; use USUM sprites as the closest match.
+  if (name.includes('sun') && name.includes('moon')) return { kind: 'versions', gen: 'generation-vii', game: 'ultra-sun-ultra-moon' };
+
+  // Gen 6
+  if ((name.includes('x') && name.includes('y')) || name.includes('x & y')) return { kind: 'versions', gen: 'generation-vi', game: 'x-y' };
+  if (name.includes('omega ruby') && name.includes('alpha sapphire')) {
+    // Note: sprite group key is "omegaruby-alphasapphire" (no hyphens) in PokeAPI.
+    return { kind: 'versions', gen: 'generation-vi', game: 'omegaruby-alphasapphire' };
+  }
+
+  // Gen 5
+  if (name.includes('black') && name.includes('white')) return { kind: 'versions', gen: 'generation-v', game: 'black-white' };
+
+  // Gen 4
+  if (name.includes('heartgold') || name.includes('soulsilver')) return { kind: 'versions', gen: 'generation-iv', game: 'heartgold-soulsilver' };
+  if (name.trim() === 'platinum') return { kind: 'versions', gen: 'generation-iv', game: 'platinum' };
+  if (name.includes('diamond') && name.includes('pearl')) return { kind: 'versions', gen: 'generation-iv', game: 'diamond-pearl' };
+
+  // Gen 3
+  if (name.includes('firered') && name.includes('leafgreen')) return { kind: 'versions', gen: 'generation-iii', game: 'firered-leafgreen' };
+  if (name.includes('emerald')) return { kind: 'versions', gen: 'generation-iii', game: 'emerald' };
+  if (name.includes('ruby') && name.includes('sapphire')) return { kind: 'versions', gen: 'generation-iii', game: 'ruby-sapphire' };
+
+  // Gen 2
+  if (name.includes('crystal')) return { kind: 'versions', gen: 'generation-ii', game: 'crystal' };
+  if (name.includes('gold')) return { kind: 'versions', gen: 'generation-ii', game: 'gold' };
+  if (name.includes('silver')) return { kind: 'versions', gen: 'generation-ii', game: 'silver' };
+
+  // Gen 1
+  if (name.includes('yellow')) return { kind: 'versions', gen: 'generation-i', game: 'yellow' };
+  if (name.includes('red') || name.includes('blue')) return { kind: 'versions', gen: 'generation-i', game: 'red-blue' };
+
+  // Fallback
+  return { kind: 'default' };
+}
+
+function getPokedexSpriteUrl(pokemonId, dexContext) {
+  const id = Number(pokemonId);
+  const base = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/';
+  if (!id || !Number.isFinite(id)) return '';
+
+  const preset = getPokedexSpritePreset(dexContext?.id, dexContext?.name);
+  if (!preset || preset.kind === 'default') return `${base}${id}.png`;
+  if (preset.kind === 'home') return `${base}other/home/${id}.png`;
+  if (preset.kind === 'versions') return `${base}versions/${preset.gen}/${preset.game}/${id}.png`;
+  return `${base}${id}.png`;
+}
+
 // Regional dex rendering (e.g. Alola forms in Gen 7 dex listings)
 const regionalVariantCache = new Map();
 
@@ -459,6 +532,8 @@ async function init() {
 }
 
 async function loadPokedex(id, name, triggerEl) {
+  currentPokedexContext = { id, name };
+
   // Always keep the Pokédex menu expanded and highlight the selected dex.
   ensurePokedexMenuExpanded();
   setActiveDexInSidebar(id, triggerEl);
@@ -479,6 +554,7 @@ async function loadPokedex(id, name, triggerEl) {
 
     // Special case for "All Pokémon"
     if (id === 'all') {
+      currentPokedexContext = { id: 'all', name: 'All Pokémon' };
       if (allPokemon.length === 0) {
          allPokemon = await fetch(`${API}/pokemon?limit=1025`).then(r => r.json()).then(d => d.results.map((p, i) => ({ id: i + 1, name: p.name })));
       }
@@ -542,9 +618,23 @@ let currentMovesSort = { field: 'name', dir: 'asc' };
 async function switchPage(page, triggerEl) {
   currentPage = page;
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-    if (triggerEl) {
-        triggerEl.classList.add('active');
+  if (triggerEl) {
+    triggerEl.classList.add('active');
+  } else {
+    // Called without a clicked element (e.g. hash routing on first load).
+    // Try to find the matching sidebar entry so the active highlight is still correct.
+    try {
+      const match = document.querySelector(`.nav-item[data-action="switch-page"][data-page="${CSS.escape(String(page))}"]`);
+      if (match) {
+        match.classList.add('active');
+      } else if (page === 'pokedex') {
+        const pokedex = document.querySelector('.nav-item[data-action="toggle-pokedex-menu"]');
+        if (pokedex) pokedex.classList.add('active');
+      }
+    } catch {
+      // Non-fatal; keep going.
     }
+  }
 
   const grid = document.getElementById('grid');
   const searchInput = document.getElementById('search');
@@ -575,6 +665,7 @@ async function switchPage(page, triggerEl) {
     searchInput.placeholder = 'Search by name or ID...';
     searchInput.value = '';
     categoryFilter.style.display = 'none';
+    currentPokedexContext = { id: 'all', name: 'All Pokémon' };
     pokemon = [...allPokemon];
     render();
   } else if (page === 'moves') {
@@ -980,7 +1071,7 @@ if (currentPage === 'pokedex') {
         <div class="card-id">#${String(p.dexId || p.id).padStart(3, '0')}</div>
         </div>
         <div class="card-image">
-        <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png" alt="${p.name}" onerror="this.style.display='none'">
+        <img src="${getPokedexSpriteUrl(p.id, currentPokedexContext)}" alt="${p.name}" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png'">
         </div>
         <div class="card-types">${p.types ? p.types.map(t => `<span class="type-tag" style="background: ${TYPE_COLORS[t]}">${t}</span>`).join('') : '<span class="loading-small" style="font-size:10px">...</span>'}</div>
     </div>
@@ -1043,12 +1134,16 @@ async function fetchPokemonTypeForCard(id, card) {
     
     try {
         if (pokemonDetailsCache[id]) {
+        const img = card.querySelector('img');
+        if (img) img.src = getPokedexSpriteUrl(id, currentPokedexContext);
             renderTypes(card, pokemonDetailsCache[id].types);
             return;
         }
 
         const pData = await fetch(`${API}/pokemon/${id}`).then(r => r.json());
         pokemonDetailsCache[id] = pData; // Cache full data
+        const img = card.querySelector('img');
+        if (img) img.src = getPokedexSpriteUrl(id, currentPokedexContext);
         renderTypes(card, pData.types);
     } catch (e) {
         console.error(`Error fetching details for ${id}`, e);

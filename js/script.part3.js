@@ -4,6 +4,92 @@ if (typeof setupActionDelegation === 'function') {
     setupActionDelegation();
 }
 
+function normalizePathname(path) {
+    return String(path || '').replace(/\\/g, '/').toLowerCase();
+}
+
+function resolveHref(href) {
+    const raw = String(href || '').trim();
+    if (!raw || raw === '#') return null;
+    try {
+        const url = new URL(raw, window.location.href);
+        return { pathname: normalizePathname(url.pathname), hash: String(url.hash || '').toLowerCase() };
+    } catch {
+        return null;
+    }
+}
+
+function setSidebarActiveFromLocation() {
+    const sidebar = document.querySelector('.sidebar-nav');
+    if (!sidebar) return;
+
+    const currentPath = normalizePathname(window.location.pathname);
+    const currentHash = String(window.location.hash || '').toLowerCase();
+
+    // Clear only top-level active state. (Do not touch .sub-nav-item.active, since dex/egg-group selection uses it.)
+    sidebar.querySelectorAll('.nav-item.active').forEach(el => el.classList.remove('active'));
+
+    const isIndex = /\/index\.html$/.test(currentPath) || currentPath.endsWith('/');
+
+    // Helper: pick a .nav-item by resolved href
+    function activateByHref(predicate) {
+        const items = Array.from(sidebar.querySelectorAll('a.nav-item[href]'));
+        for (const a of items) {
+            const res = resolveHref(a.getAttribute('href'));
+            if (!res) continue;
+            if (predicate(res, a)) {
+                a.classList.add('active');
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Index routing (single-page sections)
+    if (isIndex) {
+        const route = (typeof getInitialRouteFromHash === 'function') ? getInitialRouteFromHash() : null;
+        if (route === 'moves') {
+            const el = sidebar.querySelector('.nav-item[data-action="switch-page"][data-page="moves"]');
+            if (el) el.classList.add('active');
+            return;
+        }
+        if (route === 'type-chart') {
+            const el = sidebar.querySelector('.nav-item[data-action="switch-page"][data-page="type-chart"]');
+            if (el) el.classList.add('active');
+            return;
+        }
+        // Default: Pokédex
+        const pokedex = sidebar.querySelector('.nav-item[data-action="toggle-pokedex-menu"]');
+        if (pokedex) pokedex.classList.add('active');
+        return;
+    }
+
+    // Detail pages: map to their “section” nav entry
+    if (currentPath.endsWith('/move-detail.html')) {
+        // Matches ../index.html#moves
+        if (activateByHref((u) => u.pathname.endsWith('/index.html') && u.hash === '#moves')) return;
+    }
+    if (currentPath.endsWith('/ability-detail.html') || currentPath.endsWith('/abilities.html')) {
+        if (activateByHref((u) => u.pathname.endsWith('/abilities.html'))) return;
+    }
+    if (currentPath.endsWith('/locations.html') || currentPath.endsWith('/location-detail.html')) {
+        if (activateByHref((u) => u.pathname.endsWith('/locations.html'))) return;
+    }
+    if (currentPath.endsWith('/egg-group.html')) {
+        const egg = sidebar.querySelector('.nav-item[data-action="toggle-egg-group-menu"]');
+        if (egg) egg.classList.add('active');
+        return;
+    }
+    if (currentPath.endsWith('/pokemon-detail.html')) {
+        const pokedex = sidebar.querySelector('.nav-item[data-action="toggle-pokedex-menu"]');
+        if (pokedex) pokedex.classList.add('active');
+        return;
+    }
+
+    // Fallback: try to match exact pathname to a nav-item href.
+    activateByHref((u) => u.pathname === currentPath);
+}
+
 async function initPokedexPage() {
     window.__APP_INIT_STARTED__ = true;
     await init();
@@ -12,9 +98,14 @@ async function initPokedexPage() {
     if (route) {
         await switchPage(route);
     }
+
+    // Ensure sidebar highlight matches the active in-app route.
+    setSidebarActiveFromLocation();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    setSidebarActiveFromLocation();
+
     const detailContainer = document.getElementById('detailContainer');
     const eggGroupList = document.getElementById('eggGroupList');
     const eggGroupRoot = document.getElementById('eggPokemonGrid') || document.getElementById('eggGroupHeader');
@@ -56,6 +147,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!window.__APP_INIT_STARTED__) {
         initPokedexPage();
     }
+});
+
+// Keep index.html section routing + highlight in sync when a user lands on / changes the hash.
+window.addEventListener('hashchange', () => {
+    const isIndex = !!document.getElementById('grid') && !!document.getElementById('typeButtons');
+    if (isIndex && typeof getInitialRouteFromHash === 'function' && typeof switchPage === 'function') {
+        const route = getInitialRouteFromHash();
+        if (route) {
+            switchPage(route);
+        } else {
+            switchPage('pokedex');
+        }
+    }
+    setSidebarActiveFromLocation();
 });
 
 async function loadPokemonDetails(id) {
@@ -326,7 +431,7 @@ function renderPokemonDetail(p, species, evo, allForms = []) {
         setupDexEntryTabs(mainRoot);
         setupTypeDefenseAbilityTabs(mainRoot);
         setupLearnsetSection(mainRoot);
-        setupWhereToFindSection(mainRoot, p, species);
+        setupWhereToFindSection(mainRoot, p, species, evo);
         setupArtworkSwitchers(mainRoot);
         
         // Render alternate forms
@@ -350,7 +455,7 @@ function renderPokemonDetail(p, species, evo, allForms = []) {
             setupDexEntryTabs(formRoot);
             setupTypeDefenseAbilityTabs(formRoot);
             setupLearnsetSection(formRoot);
-            setupWhereToFindSection(formRoot, form, species);
+            setupWhereToFindSection(formRoot, form, species, evo);
             setupArtworkSwitchers(formRoot);
         });
     }
