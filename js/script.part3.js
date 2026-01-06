@@ -194,8 +194,12 @@ async function loadPokemonDetails(id) {
             const byGen = buildDexEntriesByGeneration(speciesData);
             const needsGql = !byGen[7] || !byGen[8] || !byGen[9];
             if (needsGql) {
-                const gqlByVersion = await fetchGraphqlDexFlavorTextsByDexNumber(pokemonData?.id);
-                if (gqlByVersion) speciesData.__gqlDexByVersion = gqlByVersion;
+                // GraphQL endpoint expects National Dex number, which matches species id.
+                const dexNo = Number(speciesData?.id) || getSpeciesIdFromUrl(speciesUrl) || null;
+                if (dexNo) {
+                    const gqlByVersion = await fetchGraphqlDexFlavorTextsByDexNumber(dexNo);
+                    if (gqlByVersion) speciesData.__gqlDexByVersion = gqlByVersion;
+                }
             }
         } catch (e) {
             // Non-fatal; dex entries will just remain as-is.
@@ -347,12 +351,114 @@ function renderPokemonDetail(p, species, evo, allForms = []) {
         return `<div class="tab" data-form-index="${idx + 1}">${label}</div>`;
     }).join('');
     
-    // Flavor Text
-    const flavorTextEntry = species.flavor_text_entries.find(f => f.language.name === 'en');
-    const flavorText = flavorTextEntry ? flavorTextEntry.flavor_text.replace(/\f/g, ' ') : 'No description available.';
+    function getAllowedDexVersionsForPokemon(pokemonData) {
+        const out = new Set();
 
-    // Dex entries (grouped by generation)
-    const dexEntriesSectionHtml = renderDexEntriesSectionHtml(species);
+        // IMPORTANT: pokemon.game_indices is incomplete for many Pokémon (e.g. Tauros only lists up to Gen 5),
+        // so we must NOT use it as an early-return "source of truth".
+        // Our best availability signal is the move version groups present for the Pokémon/form.
+
+        const vgToVersions = (typeof VERSION_GROUP_TO_VERSIONS === 'object' && VERSION_GROUP_TO_VERSIONS) ? VERSION_GROUP_TO_VERSIONS : null;
+
+        const moves = pokemonData?.moves;
+        if (vgToVersions && Array.isArray(moves) && moves.length) {
+            for (const m of moves) {
+                const details = m?.version_group_details;
+                if (!Array.isArray(details)) continue;
+                for (const d of details) {
+                    const vg = d?.version_group?.name;
+                    if (!vg) continue;
+                    const versions = vgToVersions[vg];
+                    if (!Array.isArray(versions)) continue;
+                    for (const v of versions) out.add(String(v));
+                }
+            }
+        }
+
+        // Add whatever we can from game_indices as an additional (often incomplete) hint.
+        const list = pokemonData?.game_indices;
+        if (Array.isArray(list) && list.length) {
+            for (const gi of list) {
+                const v = gi?.version?.name;
+                if (v) out.add(String(v));
+            }
+        }
+
+        return out.size ? out : null;
+    }
+
+    function buildSpeciesDerived(speciesData, pokemonData) {
+        const s = speciesData || {};
+
+        const flavorTextEntry = (s.flavor_text_entries || []).find(f => f?.language?.name === 'en');
+        const flavorText = flavorTextEntry ? String(flavorTextEntry.flavor_text || '').replace(/\f/g, ' ') : 'No description available.';
+
+        const allowed = getAllowedDexVersionsForPokemon(pokemonData);
+        const dexEntriesSectionHtml = renderDexEntriesSectionHtml(s, allowed || undefined, pokemonData?.name);
+
+        const genus = (s.genera || []).find(g => g?.language?.name === 'en')?.genus || '';
+
+        const catchRate = s.capture_rate;
+        const growthRate = String(s.growth_rate?.name || '').replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+        // Adjust Base Friendship: PokeAPI returns Gen 7 standard (70), but Gen 8+ standard is 50.
+        let baseFriendship = s.base_happiness;
+        if (baseFriendship === 70) baseFriendship = 50;
+
+        let friendshipDesc = '(normal)';
+        if (baseFriendship === 0) friendshipDesc = '(lower than normal)';
+        else if (baseFriendship < 50) friendshipDesc = '(lower than normal)';
+        else if (baseFriendship > 50) friendshipDesc = '(higher than normal)';
+
+        const eggGroups = (s.egg_groups || []).map(g => {
+            const apiName = g.name;
+            const displayName = (apiName === 'no-eggs' ? 'undiscovered' : apiName)
+                .replace(/-/g, ' ')
+                .replace(/\b\w/g, l => l.toUpperCase());
+            return `<a href="${PAGES_PREFIX}egg-group.html?group=${apiName}" style="color: #3bd5ff; text-decoration: none; cursor: pointer; border-bottom: 1px solid #3bd5ff;">${displayName}</a>`;
+        }).join(', ');
+
+        const genderRate = s.gender_rate;
+        let genderText = '';
+        if (genderRate === -1) {
+            genderText = 'Genderless';
+        } else {
+            const femaleChance = (genderRate / 8) * 100;
+            const maleChance = 100 - femaleChance;
+            genderText = `<span style="color:#3bd5ff">${maleChance}% male</span>, <span style="color:#ff5959">${femaleChance}% female</span>`;
+        }
+
+        const eggCycles = s.hatch_counter;
+        const steps = (eggCycles * 257).toLocaleString();
+
+        const localDex = (s.pokedex_numbers || [])
+            .filter(entry => entry?.pokedex?.name !== 'national')
+            .map(entry => {
+                const dexName = entry.pokedex.name
+                    .replace(/-/g, ' ')
+                    .replace(/\b\w/g, l => l.toUpperCase());
+                return `${String(entry.entry_number).padStart(4, '0')} <small style="color:#8b92a5">(${dexName})</small>`;
+            });
+        const localDexHtml = localDex.length > 0 ? localDex.join('<br>') : 'None';
+
+        return {
+            flavorText,
+            dexEntriesSectionHtml,
+            genus,
+            localDexHtml,
+            catchRate,
+            growthRate,
+            baseFriendship,
+            friendshipDesc,
+            eggGroups,
+            genderText,
+            eggCycles,
+            steps
+        };
+    }
+
+    // Species-derived values for the currently-viewed Pokémon (main tab)
+    const mainSpeciesDerived = buildSpeciesDerived(species, p);
 
     // Learnset (moves by generation/version group)
     const learnsetKeyMain = `learnset-${p.id}`;
@@ -400,7 +506,7 @@ function renderPokemonDetail(p, species, evo, allForms = []) {
     const defenseHtml = renderTypeDefensesByAbility(p.types, p.abilities);
 
     // Data Helpers
-    const genus = species.genera.find(g => g.language.name === 'en')?.genus || '';
+    const genus = mainSpeciesDerived.genus;
     const heightM = p.height / 10;
     const weightKg = p.weight / 10;
     const abilities = p.abilities.map(a => 
@@ -408,53 +514,26 @@ function renderPokemonDetail(p, species, evo, allForms = []) {
     ).join('<br>');
     
     // Training Data
-    const catchRate = species.capture_rate;
+    const catchRate = mainSpeciesDerived.catchRate;
     const baseExp = p.base_experience;
-    const growthRate = species.growth_rate.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    const growthRate = mainSpeciesDerived.growthRate;
     
     // Adjust Base Friendship: PokeAPI returns Gen 7 standard (70), but Gen 8+ standard is 50.
-    let baseFriendship = species.base_happiness;
-    if (baseFriendship === 70) baseFriendship = 50;
+    let baseFriendship = mainSpeciesDerived.baseFriendship;
     
     // Friendship description
-    let friendshipDesc = '(normal)';
-    if (baseFriendship === 0) friendshipDesc = '(lower than normal)';
-    else if (baseFriendship < 50) friendshipDesc = '(lower than normal)';
-    else if (baseFriendship > 50) friendshipDesc = '(higher than normal)';
+    let friendshipDesc = mainSpeciesDerived.friendshipDesc;
 
     const evYield = p.stats.filter(s => s.effort > 0).map(s => `${s.effort} ${formatStatName(s.stat.name)}`).join(', ');
 
     // Breeding Data
-    const eggGroups = species.egg_groups.map(g => {
-        // Map "no-eggs" to "undiscovered" for display consistency
-        const apiName = g.name;
-        const displayName = (apiName === 'no-eggs' ? 'undiscovered' : apiName)
-            .replace(/-/g, ' ')
-            .replace(/\b\w/g, l => l.toUpperCase());
-        return `<a href="${PAGES_PREFIX}egg-group.html?group=${apiName}" style="color: #3bd5ff; text-decoration: none; cursor: pointer; border-bottom: 1px solid #3bd5ff;">${displayName}</a>`;
-    }).join(', ');
-    const genderRate = species.gender_rate;
-    let genderText = '';
-    if (genderRate === -1) {
-        genderText = 'Genderless';
-    } else {
-        const femaleChance = (genderRate / 8) * 100;
-        const maleChance = 100 - femaleChance;
-        genderText = `<span style="color:#3bd5ff">${maleChance}% male</span>, <span style="color:#ff5959">${femaleChance}% female</span>`;
-    }
-    const eggCycles = species.hatch_counter;
-    const steps = (eggCycles * 257).toLocaleString(); // Approx steps per cycle
+    const eggGroups = mainSpeciesDerived.eggGroups;
+    let genderText = mainSpeciesDerived.genderText;
+    const eggCycles = mainSpeciesDerived.eggCycles;
+    const steps = mainSpeciesDerived.steps; // Approx steps per cycle
 
     // Local Dex Numbers
-    const localDex = species.pokedex_numbers
-        .filter(entry => entry.pokedex.name !== 'national')
-        .map(entry => {
-            const dexName = entry.pokedex.name
-                .replace(/-/g, ' ')
-                .replace(/\b\w/g, l => l.toUpperCase());
-            return `${String(entry.entry_number).padStart(4, '0')} <small style="color:#8b92a5">(${dexName})</small>`;
-        });
-    const localDexHtml = localDex.length > 0 ? localDex.join('<br>') : 'None';
+    const localDexHtml = mainSpeciesDerived.localDexHtml;
 
     // Navigation Links
     const prevId = p.id > 1 ? p.id - 1 : 1025;
@@ -493,7 +572,32 @@ function renderPokemonDetail(p, species, evo, allForms = []) {
     async function renderFormContentAsync() {
         // Render main form
         const evoHtml = await renderEvolutionChain(evo.chain);
-        const mainContent = renderFormContent(p, species, evo, genus, localDexHtml, catchRate, baseExp, growthRate, baseFriendship, friendshipDesc, evYield, eggGroups, genderText, eggCycles, steps, abilities, heightM, weightKg, flavorText, dexEntriesSectionHtml, statsHtml, defenseHtml, evoHtml, learnsetSectionHtmlMain);
+        const mainContent = renderFormContent(
+            p,
+            species,
+            evo,
+            genus,
+            localDexHtml,
+            catchRate,
+            baseExp,
+            growthRate,
+            baseFriendship,
+            friendshipDesc,
+            evYield,
+            eggGroups,
+            genderText,
+            eggCycles,
+            steps,
+            abilities,
+            heightM,
+            weightKg,
+            mainSpeciesDerived.flavorText,
+            mainSpeciesDerived.dexEntriesSectionHtml,
+            statsHtml,
+            defenseHtml,
+            evoHtml,
+            learnsetSectionHtmlMain
+        );
         const mainRoot = document.getElementById('formContent0');
         mainRoot.innerHTML = mainContent;
         setupDexEntryTabs(mainRoot);
@@ -503,7 +607,36 @@ function renderPokemonDetail(p, species, evo, allForms = []) {
         setupArtworkSwitchers(mainRoot);
         
         // Render alternate forms
-        relevantForms.forEach((form, idx) => {
+        async function hydrateSpeciesForPokemon(pokemonData) {
+            const url = pokemonData?.species?.url;
+            if (!url) return null;
+            const res = await fetch(url);
+            if (!res.ok) return null;
+            const speciesData = await res.json();
+
+            // Ensure Gen 7-9 entries are filled for this species (same approach as loadPokemonDetails).
+            try {
+                const byGen = buildDexEntriesByGeneration(speciesData);
+                const needsGql = !byGen[7] || !byGen[8] || !byGen[9];
+                if (needsGql) {
+                    const dexNo = Number(speciesData?.id) || getSpeciesIdFromUrl(url) || null;
+                    if (dexNo) {
+                        const gqlByVersion = await fetchGraphqlDexFlavorTextsByDexNumber(dexNo);
+                        if (gqlByVersion) speciesData.__gqlDexByVersion = gqlByVersion;
+                    }
+                }
+            } catch (e) {
+                console.warn('GraphQL-Pokemon dex fallback failed (form species):', e);
+            }
+
+            return speciesData;
+        }
+
+        for (let idx = 0; idx < relevantForms.length; idx++) {
+            const form = relevantForms[idx];
+            const formSpecies = (await hydrateSpeciesForPokemon(form)) || species;
+            const formDerived = buildSpeciesDerived(formSpecies, form);
+
             const formAbilities = form.abilities.map(a => 
                 `${a.is_hidden ? '<small class="text-muted">' : ''}${a.slot}. <a href="${PAGES_PREFIX}ability-detail.html?ability=${a.ability.name}" style="color:#3bd5ff;text-decoration:none">${a.ability.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</a>${a.is_hidden ? ' (hidden ability)</small>' : ''}`
             ).join('<br>');
@@ -516,16 +649,41 @@ function renderPokemonDetail(p, species, evo, allForms = []) {
             const learnsetKey = `learnset-${form.id}`;
             learnsetStore[learnsetKey] = buildLearnsetData(form);
             const learnsetSectionHtml = renderLearnsetSectionHtml(form, learnsetKey);
-            
-            const formContent = renderFormContent(form, species, evo, genus, localDexHtml, catchRate, form.base_experience || baseExp, growthRate, baseFriendship, friendshipDesc, formEvYield, eggGroups, genderText, eggCycles, steps, formAbilities, formHeightM, formWeightKg, flavorText, dexEntriesSectionHtml, formStatsHtml, formDefenseHtml, evoHtml, learnsetSectionHtml);
+
+            const formContent = renderFormContent(
+                form,
+                formSpecies,
+                evo,
+                formDerived.genus || genus,
+                formDerived.localDexHtml,
+                formDerived.catchRate,
+                form.base_experience || baseExp,
+                formDerived.growthRate || growthRate,
+                formDerived.baseFriendship,
+                formDerived.friendshipDesc,
+                formEvYield,
+                formDerived.eggGroups,
+                formDerived.genderText,
+                formDerived.eggCycles,
+                formDerived.steps,
+                formAbilities,
+                formHeightM,
+                formWeightKg,
+                formDerived.flavorText,
+                formDerived.dexEntriesSectionHtml,
+                formStatsHtml,
+                formDefenseHtml,
+                evoHtml,
+                learnsetSectionHtml
+            );
             const formRoot = document.getElementById(`formContent${idx + 1}`);
             formRoot.innerHTML = formContent;
             setupDexEntryTabs(formRoot);
             setupTypeDefenseAbilityTabs(formRoot);
             setupLearnsetSection(formRoot);
-            setupWhereToFindSection(formRoot, form, species, evo);
+            setupWhereToFindSection(formRoot, form, formSpecies, evo);
             setupArtworkSwitchers(formRoot);
-        });
+        }
     }
     
     // Call async function

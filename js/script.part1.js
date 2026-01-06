@@ -241,6 +241,49 @@ const VERSION_GROUP_TO_GEN = {
 'scarlet-violet': 9
 };
 
+// Map version groups (used in move learnsets) to the specific game versions that have dex flavor texts.
+// This is also a good proxy for "which games does this form exist in" when pokemon.game_indices is empty.
+const VERSION_GROUP_TO_VERSIONS = {
+    // Gen I
+    'red-blue': ['red', 'blue'],
+    'yellow': ['yellow'],
+
+    // Gen II
+    'gold-silver': ['gold', 'silver'],
+    'crystal': ['crystal'],
+
+    // Gen III
+    'ruby-sapphire': ['ruby', 'sapphire'],
+    'emerald': ['emerald'],
+    'firered-leafgreen': ['firered', 'leafgreen'],
+
+    // Gen IV
+    'diamond-pearl': ['diamond', 'pearl'],
+    'platinum': ['platinum'],
+    'heartgold-soulsilver': ['heartgold', 'soulsilver'],
+
+    // Gen V
+    'black-white': ['black', 'white'],
+    'black-2-white-2': ['black-2', 'white-2'],
+
+    // Gen VI
+    'x-y': ['x', 'y'],
+    'omega-ruby-alpha-sapphire': ['omega-ruby', 'alpha-sapphire'],
+
+    // Gen VII
+    'sun-moon': ['sun', 'moon'],
+    'ultra-sun-ultra-moon': ['ultra-sun', 'ultra-moon'],
+    'lets-go-pikachu-lets-go-eevee': ['lets-go-pikachu', 'lets-go-eevee'],
+
+    // Gen VIII
+    'sword-shield': ['sword', 'shield'],
+    'brilliant-diamond-shining-pearl': ['brilliant-diamond', 'shining-pearl'],
+    'legends-arceus': ['legends-arceus'],
+
+    // Gen IX
+    'scarlet-violet': ['scarlet', 'violet']
+};
+
 // Mainline game versions for dex flavor text (pokemon-species.flavor_text_entries)
 const MAINLINE_VERSION_META = {
     // Gen I
@@ -409,7 +452,70 @@ function normalizeFlavorText(text) {
         .trim();
 }
 
-function buildDexEntriesByGeneration(species) {
+// Targeted per-form dex entry overrides for cases where upstream APIs only expose a single
+// species-level flavor text (but PokemonDB displays per-form variations).
+//
+// Keys are PokeAPI pokemon names (not species names).
+const DEX_ENTRY_OVERRIDES = {
+    // Squawkabilly: PokeAPI has a single species endpoint (931) and Violet text mentions "Green-feathered".
+    // PokemonDB displays the same entry per plumage color, so we adjust the leading color word.
+    'squawkabilly-blue-plumage': {
+        violet: (t) => String(t || '').replace(/^Green-feathered\b/i, 'Blue-feathered')
+    },
+    'squawkabilly-yellow-plumage': {
+        violet: (t) => String(t || '').replace(/^Green-feathered\b/i, 'Yellow-feathered')
+    },
+    'squawkabilly-white-plumage': {
+        violet: (t) => String(t || '').replace(/^Green-feathered\b/i, 'White-feathered')
+    },
+
+    // Paldean Tauros breeds: PokemonDB shows distinct Scarlet/Violet entries per breed.
+    // PokeAPI does not expose per-form species flavor texts, so we provide explicit overrides.
+    'tauros-paldea-combat-breed': {
+        scarlet: 'This Pokémon has a muscular body and excels at close-quarters combat. It uses its short horns to strike the opponent’s weak spots.',
+        violet: 'This kind of Tauros, known as the Combat Breed, is distinguished by its thick, powerful muscles and its fierce disposition.'
+    },
+    'tauros-paldea-blaze-breed': {
+        scarlet: 'When heated by fire energy, its horns can get hotter than 1,800 degrees Fahrenheit. Those gored by them will suffer both wounds and burns.',
+        violet: 'People call this kind of Tauros the Blaze Breed due to the hot air it snorts from its nostrils. Its three tails are intertwined.'
+    },
+    'tauros-paldea-aqua-breed': {
+        scarlet: 'This Pokémon blasts water from holes on the tips of its horns—the high-pressure jets pierce right through Tauros’s enemies.',
+        violet: 'It swims by jetting water from its horns. The most notable characteristic of the Aqua Breed is its high body fat, which allows it to float easily.'
+    }
+};
+
+function applyDexEntryOverrides(pokemonName, byVersion) {
+    if (!pokemonName || !(byVersion instanceof Map)) return;
+    const key = String(pokemonName).trim().toLowerCase();
+    if (!key) return;
+    const overrides = DEX_ENTRY_OVERRIDES[key];
+    if (!overrides || typeof overrides !== 'object') return;
+
+    for (const [versionKey, rule] of Object.entries(overrides)) {
+        if (!versionKey) continue;
+
+        const hasExisting = byVersion.has(versionKey);
+        const current = hasExisting ? byVersion.get(versionKey) : '';
+
+        let next = current;
+        if (typeof rule === 'function') {
+            // Only transform when we have a source string.
+            if (!hasExisting) continue;
+            next = rule(current);
+        } else if (typeof rule === 'string') {
+            // Allow explicit override strings to insert missing versions.
+            next = rule;
+        } else {
+            continue;
+        }
+
+        const normalized = normalizeFlavorText(next);
+        if (normalized) byVersion.set(versionKey, normalized);
+    }
+}
+
+function buildDexEntriesByGeneration(species, allowedVersions, pokemonName) {
     const byVersion = new Map();
     const entries = (species?.flavor_text_entries || []).filter(e => e?.language?.name === 'en');
 
@@ -417,6 +523,7 @@ function buildDexEntriesByGeneration(species) {
         const versionName = entry?.version?.name;
         if (!versionName) continue;
         if (!MAINLINE_VERSION_META[versionName]) continue;
+        if (allowedVersions && allowedVersions instanceof Set && !allowedVersions.has(versionName)) continue;
         if (byVersion.has(versionName)) continue;
 
         const text = normalizeFlavorText(entry.flavor_text);
@@ -432,9 +539,13 @@ function buildDexEntriesByGeneration(species) {
             const text = normalizeFlavorText(textRaw);
             if (!text) continue;
             if (!MAINLINE_VERSION_META[versionKey]) continue;
+            if (allowedVersions && allowedVersions instanceof Set && !allowedVersions.has(versionKey)) continue;
             byVersion.set(versionKey, text);
         }
     }
+
+    // Apply targeted per-form overrides after all sources have been collected.
+    applyDexEntryOverrides(pokemonName, byVersion);
 
     const byGen = {};
     for (let gen = 1; gen <= 9; gen++) {
@@ -452,8 +563,8 @@ function buildDexEntriesByGeneration(species) {
     return byGen;
 }
 
-function renderDexEntriesSectionHtml(species) {
-    const byGen = buildDexEntriesByGeneration(species);
+function renderDexEntriesSectionHtml(species, allowedVersions, pokemonName) {
+    const byGen = buildDexEntriesByGeneration(species, allowedVersions, pokemonName);
 
     const gensWithEntries = Object.keys(byGen)
         .map(n => parseInt(n, 10))

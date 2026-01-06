@@ -1115,9 +1115,9 @@ if (currentPage === 'pokedex') {
     
     document.getElementById('empty').style.display = 'none';
     grid.innerHTML = filtered.map(p => `
-    <div class="card" id="card-${p.id}" data-action="open-pokemon" data-pokemon-id="${p.id}">
+    <div class="card" id="card-${p.id}" data-action="open-pokemon" data-pokemon-id="${p.id}" data-dex-id="${p.dexId || ''}">
         <div class="card-header">
-        <div class="card-name">${formatName(p.name)}</div>
+      <div class="card-name">${formatName(getGridBaseSpeciesSlug(p) || p.name)}</div>
         <div class="card-id">#${String(p.dexId || p.id).padStart(3, '0')}</div>
         </div>
         <div class="card-image">
@@ -1178,6 +1178,71 @@ function fetchPokedexTypes(pokemonList) {
     });
 }
 
+// In the Pokédex grid, show the base species name (PokemonDB-style).
+// The /pokemon list contains many form slugs (e.g. tornadus-incarnate), so we use a
+// safe heuristic until the card is hydrated with full /pokemon/{id} data.
+const FORM_NAME_TOKENS = new Set([
+  // common form descriptors
+  'normal', 'attack', 'defense', 'speed',
+  'altered', 'origin',
+  'incarnate', 'therian',
+  'solo', 'school',
+  'midday', 'midnight', 'dusk', 'dawn',
+  'male', 'female',
+  'ice', 'noice',
+  'crowned', 'hero',
+  'single', 'rapid', 'strike', 'style',
+  'complete', 'construct',
+  // regional / special tags
+  'alola', 'galar', 'hisui', 'paldea',
+  // breed / palette words for known cases
+  'combat', 'blaze', 'aqua', 'breed',
+  'plumage', 'green', 'blue', 'yellow', 'white',
+  'red', 'orange', 'indigo', 'violet', 'meteor'
+]);
+
+function getGridBaseSpeciesSlug(p) {
+  const raw = String(p?.name || '').toLowerCase();
+  if (!raw) return '';
+
+  // Prefer a known species name if the entry already has it.
+  const speciesSlug = String(p?.speciesName || p?.species?.name || '').toLowerCase();
+  if (speciesSlug) return speciesSlug;
+
+  const parts = raw.split('-').filter(Boolean);
+  if (parts.length <= 1) return raw;
+
+  const tail = parts.slice(1);
+  const looksLikeForm = tail.some(t => FORM_NAME_TOKENS.has(t));
+  return looksLikeForm ? parts[0] : raw;
+}
+
+function updatePokedexCardHeaderFromPokemonData(card, pData) {
+  if (!card || !pData) return;
+
+  // Update display name to base species.
+  const speciesSlug = pData?.species?.name;
+  if (speciesSlug) {
+    const nameEl = card.querySelector('.card-name');
+    if (nameEl) nameEl.textContent = formatName(speciesSlug);
+  }
+
+  // For lists that come from /pokemon (forms), prefer the species id as the National Dex number.
+  // Do NOT override regional dex entry numbers.
+  const dexIdAttr = String(card.getAttribute('data-dex-id') || '').trim();
+  if (!dexIdAttr) {
+    const speciesUrl = String(pData?.species?.url || '');
+    const m = speciesUrl.match(/\/pokemon-species\/(\d+)\/?$/);
+    if (m) {
+      const dexNum = parseInt(m[1], 10);
+      if (Number.isFinite(dexNum)) {
+        const idEl = card.querySelector('.card-id');
+        if (idEl) idEl.textContent = `#${String(dexNum).padStart(3, '0')}`;
+      }
+    }
+  }
+}
+
 async function fetchPokemonTypeForCard(id, card) {
     if (card.dataset.loaded) return;
     card.dataset.loaded = 'true';
@@ -1186,6 +1251,7 @@ async function fetchPokemonTypeForCard(id, card) {
         if (pokemonDetailsCache[id]) {
         const img = card.querySelector('img');
         if (img) img.src = getPokedexSpriteUrl(id, currentPokedexContext);
+        updatePokedexCardHeaderFromPokemonData(card, pokemonDetailsCache[id]);
             renderTypes(card, pokemonDetailsCache[id].types);
             return;
         }
@@ -1194,6 +1260,7 @@ async function fetchPokemonTypeForCard(id, card) {
         pokemonDetailsCache[id] = pData; // Cache full data
         const img = card.querySelector('img');
         if (img) img.src = getPokedexSpriteUrl(id, currentPokedexContext);
+        updatePokedexCardHeaderFromPokemonData(card, pData);
         renderTypes(card, pData.types);
     } catch (e) {
         console.error(`Error fetching details for ${id}`, e);
