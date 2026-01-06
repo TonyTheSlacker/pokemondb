@@ -663,6 +663,12 @@ button.nav-link {
   margin-bottom: 6px;
 }
 
+.evo-form {
+  color: #8b92a5;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
 .evo-types {
   display: flex;
   gap: 8px;

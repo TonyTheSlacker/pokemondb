@@ -34,6 +34,12 @@ window.addEventListener('unhandledrejection', (e) => {
 
 // Ensure the main app initializes even if later routing logic is skipped.
 document.addEventListener('DOMContentLoaded', () => {
+    try {
+        decorateNativePokedexBadges();
+    } catch {
+        // Non-critical UI enhancement; ignore.
+    }
+
     const isIndex = !!document.getElementById('grid') && !!document.getElementById('typeButtons');
     const isDetail = !!document.getElementById('detailContainer');
     const isEgg = !!document.getElementById('eggGroupList') || !!document.getElementById('eggPokemonGrid') || !!document.getElementById('eggGroupHeader');
@@ -48,6 +54,85 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 });
+
+function decorateNativePokedexBadges() {
+    const groups = document.querySelectorAll('.nav-sub-menu .sub-menu-group');
+    if (!groups || groups.length === 0) return;
+
+    const dexMetaByName = {
+        'scarlet & violet': { badge: 'SV', color: TYPE_COLORS.fire },
+        'legends: arceus': { badge: 'LA', color: TYPE_COLORS.psychic },
+        'brilliant diamond & shining pearl': { badge: 'BDSP', color: TYPE_COLORS.rock },
+        'sword & shield': { badge: 'SWSH', color: TYPE_COLORS.steel },
+        "let's go pikachu & eevee": { badge: 'LGPE', color: TYPE_COLORS.electric },
+        'ultra sun & ultra moon': { badge: 'USUM', color: TYPE_COLORS.dragon },
+        'sun & moon': { badge: 'SM', color: TYPE_COLORS.grass },
+        'omega ruby & alpha sapphire': { badge: 'ORAS', color: TYPE_COLORS.water },
+        'x & y': { badge: 'XY', color: TYPE_COLORS.fairy },
+        'black 2 & white 2': { badge: 'B2W2', color: TYPE_COLORS.dark },
+        'black & white': { badge: 'BW', color: TYPE_COLORS.dark },
+        'heartgold & soulsilver': { badge: 'HGSS', color: TYPE_COLORS.steel },
+        'platinum': { badge: 'PLAT', color: TYPE_COLORS.ghost },
+        'diamond & pearl': { badge: 'DP', color: TYPE_COLORS.rock },
+        'firered & leafgreen': { badge: 'FRLG', color: TYPE_COLORS.fire },
+        'ruby, sapphire & emerald': { badge: 'RSE', color: TYPE_COLORS.water },
+        'gold, silver & crystal': { badge: 'GSC', color: TYPE_COLORS.electric },
+        'red, blue & yellow': { badge: 'RBY', color: TYPE_COLORS.normal }
+    };
+
+    function normalizeName(name) {
+        return String(name || '').trim().toLowerCase();
+    }
+
+    function ensureLabelSpan(link) {
+        const existing = link.querySelector(':scope > .sub-nav-label');
+        if (existing) return existing;
+
+        const label = document.createElement('span');
+        label.className = 'sub-nav-label';
+        label.textContent = link.textContent;
+        link.textContent = '';
+        link.appendChild(label);
+        return label;
+    }
+
+    function isLightHex(hex) {
+        if (!hex || typeof hex !== 'string' || !/^#?[0-9a-fA-F]{6}$/.test(hex)) return false;
+        const h = hex.startsWith('#') ? hex.slice(1) : hex;
+        const r = parseInt(h.slice(0, 2), 16);
+        const g = parseInt(h.slice(2, 4), 16);
+        const b = parseInt(h.slice(4, 6), 16);
+        // Perceived luminance
+        const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+        return lum > 0.62;
+    }
+
+    for (const group of groups) {
+        const titleEl = group.querySelector('.sub-menu-title');
+        const title = normalizeName(titleEl?.textContent);
+        if (title !== 'native pokédexes' && title !== 'native pokedexes') continue;
+
+        const links = group.querySelectorAll('a.sub-nav-item[data-dex-name]');
+        for (const link of links) {
+            if (link.querySelector(':scope > .dex-badge')) continue;
+
+            const dexName = link.getAttribute('data-dex-name') || link.textContent;
+            const meta = dexMetaByName[normalizeName(dexName)];
+            if (!meta) continue;
+
+            ensureLabelSpan(link);
+
+            const badge = document.createElement('span');
+            badge.className = 'dex-badge';
+            badge.textContent = meta.badge;
+            badge.title = dexName;
+            badge.style.backgroundColor = meta.color;
+            badge.style.borderColor = 'rgba(255, 255, 255, 0.16)';
+            badge.style.color = isLightHex(meta.color) ? '#0a0e1a' : '#f5f7ff';
+            link.appendChild(badge);
+        }
+    }
+}
 
 async function fetchJsonWithTimeout(url, timeoutMs = 15000) {
     const controller = new AbortController();

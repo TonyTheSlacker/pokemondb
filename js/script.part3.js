@@ -175,10 +175,18 @@ async function loadPokemonDetails(id) {
     `;
 
     try {
-        const [pokemonData, speciesData] = await Promise.all([
-            fetch(`${API}/pokemon/${id}`).then(r => r.json()),
-            fetch(`${API}/pokemon-species/${id}`).then(r => r.json())
-        ]);
+        const pokemonRes = await fetch(`${API}/pokemon/${id}`);
+        if (!pokemonRes.ok) throw new Error(`Pokemon not found: ${id}`);
+        const pokemonData = await pokemonRes.json();
+
+        // IMPORTANT: pokemon "id" and species "id" diverge for alternate forms.
+        // Always resolve species from the pokemon payload.
+        const speciesUrl = pokemonData?.species?.url;
+        if (!speciesUrl) throw new Error('Species URL missing');
+
+        const speciesRes = await fetch(speciesUrl);
+        if (!speciesRes.ok) throw new Error('Species not found');
+        const speciesData = await speciesRes.json();
 
         // Fill missing Gen 7–9 dex entries using GraphQL-Pokemon.
         // (PokeAPI is missing a lot of Gen 9 flavor texts.)
@@ -245,38 +253,98 @@ function setupTypeDefenseAbilityTabs(root) {
 
 function renderPokemonDetail(p, species, evo, allForms = []) {
     const container = document.getElementById('detailContainer');
-    
-    // Filter forms to show: exclude base form, only show actual variants
-    const relevantForms = allForms.filter(form => {
-        const name = form.name.toLowerCase();
-        const baseName = p.name.toLowerCase();
-        
-        // Exclude the exact base form (no variants)
-        if (name === baseName) return false;
-        
-        // Include actual variant forms
-        return name.includes('mega') || name.includes('gmax') || name.includes('gigantamax') || 
-               name.includes('alola') || name.includes('galar') || name.includes('hisui') || 
-               name.includes('paldea') || name.includes('ash') || name.includes('battle-bond') ||
-               name.includes('origin') || name.includes('primal') || name.includes('therian') ||
-               name.includes('sky') || name.includes('black') || name.includes('white') ||
-               (name.includes('-') && name !== baseName); // Any form with a hyphen that's not exactly the base
-    });
+
+    const speciesBaseName = String(species?.name || p?.species?.name || '').toLowerCase();
+    const mainDisplayName = (typeof formatPokemonDisplayName === 'function')
+        ? formatPokemonDisplayName(p?.name, speciesBaseName)
+        : formatName(p?.name);
+
+    function getFormTabLabel(apiName, speciesBase, hasForms) {
+        const raw = String(apiName || '').toLowerCase();
+        const base = String(speciesBase || '').toLowerCase();
+        if (!raw) return '';
+
+        const isSuffixForm = base && raw.startsWith(base + '-');
+        const suffix = isSuffixForm ? raw.slice(base.length + 1) : '';
+        if (!suffix) return hasForms ? 'Normal Form' : formatName(base || raw);
+
+        if (suffix === 'starter') return 'Partner';
+
+        const REGIONAL_FORM = {
+            alola: 'Alolan Form',
+            galar: 'Galarian Form',
+            hisui: 'Hisuian Form',
+            paldea: 'Paldean Form'
+        };
+        if (REGIONAL_FORM[suffix]) return REGIONAL_FORM[suffix];
+
+        if (suffix === 'gmax' || suffix === 'gigantamax') return 'Gigantamax';
+
+        if (suffix.startsWith('mega')) {
+            const rest = suffix.replace(/^mega-?/, '').trim();
+            return rest ? `Mega ${formatName(rest)}` : 'Mega';
+        }
+
+        // Rockruff special casing: PokemonDB shows "Own Tempo" (not "Own Tempo Form").
+        if (base === 'rockruff' && suffix === 'own-tempo') return 'Own Tempo';
+
+        return `${formatName(suffix)} Form`;
+    }
+
+    const headerDisplayName = formatName(speciesBaseName || p?.name);
+
+    const currentSlug = String(p?.name || '').toLowerCase();
+
+    // Filter forms to show: exclude the current form and the plain species base name.
+    const relevantForms = (() => {
+        const baseName = speciesBaseName || currentSlug;
+        const filtered = (Array.isArray(allForms) ? allForms : []).filter(form => {
+            const name = String(form?.name || '').toLowerCase();
+
+            // Never show the currently-viewed form as a second tab.
+            if (name && currentSlug && name === currentSlug) return false;
+
+            // Exclude the exact base species entry (no variants).
+            if (name && baseName && name === baseName) return false;
+
+            // Include actual variant forms
+            return name.includes('mega') || name.includes('gmax') || name.includes('gigantamax') ||
+                name.includes('alola') || name.includes('galar') || name.includes('hisui') ||
+                name.includes('paldea') || name.includes('ash') || name.includes('battle-bond') ||
+                name.includes('origin') || name.includes('primal') || name.includes('therian') ||
+                name.includes('sky') || name.includes('black') || name.includes('white') ||
+                (name.includes('-') && name !== baseName);
+        });
+
+        // Global safety: de-dupe by form name so we never render repeated tabs.
+        const seen = new Set();
+        const out = [];
+        for (const f of filtered) {
+            const k = String(f?.name || '').toLowerCase();
+            if (!k || seen.has(k)) continue;
+            seen.add(k);
+            out.push(f);
+        }
+        return out;
+    })();
+
+    const hasForms = relevantForms.length > 0;
+    const activeTabLabel = getFormTabLabel(p?.name, speciesBaseName, hasForms);
     
     // Build tabs HTML
     const formsTabsHtml = relevantForms.map((form, idx) => {
-        const rawSuffix = form.name.replace(p.name + '-', '');
+        const rawSuffix = speciesBaseName && form.name.toLowerCase().startsWith(speciesBaseName + '-')
+            ? form.name.slice(speciesBaseName.length + 1)
+            : form.name;
         // Let's Go partner forms are named "*-starter" in PokeAPI; display as "Partner".
         if (String(rawSuffix || '').toLowerCase() === 'starter') {
             return `<div class="tab" data-form-index="${idx + 1}">Partner</div>`;
         }
 
-        let displayName = rawSuffix.replace(/-/g, ' ');
-        displayName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
-        if (displayName.toLowerCase().includes('gmax')) displayName = 'Gigantamax';
-        if (displayName.toLowerCase().includes('ash')) displayName = 'Ash';
-        if (displayName.toLowerCase().includes('battle bond')) displayName = 'Battle Bond';
-        return `<div class="tab" data-form-index="${idx + 1}">${displayName}</div>`;
+        const label = getFormTabLabel(form?.name, speciesBaseName, true) || ((typeof formatPokemonDisplayName === 'function')
+            ? formatPokemonDisplayName(form?.name, speciesBaseName)
+            : formatName(form?.name));
+        return `<div class="tab" data-form-index="${idx + 1}">${label}</div>`;
     }).join('');
     
     // Flavor Text
@@ -402,7 +470,7 @@ function renderPokemonDetail(p, species, evo, allForms = []) {
                     <span class="nav-arrow">◀</span> #${String(prevId).padStart(4, '0')} <span class="nav-name">Loading...</span>
                 </a>` : '<div></div>'}
             </div>
-            <h1 class="detail-h1">${formatName(p.name)}</h1>
+            <h1 class="detail-h1">${headerDisplayName}</h1>
             <div class="nav-link-container" style="justify-content: flex-end;">
                 ${p.id < 1025 ? `<a href="${PAGES_PREFIX}pokemon-detail.html?id=${nextId}" class="nav-link next-link" id="nextLink">
                     <span class="nav-name">Loading...</span> #${String(nextId).padStart(4, '0')} <span class="nav-arrow">▶</span>
@@ -411,7 +479,7 @@ function renderPokemonDetail(p, species, evo, allForms = []) {
         </div>
 
         <div class="tabs">
-            <div class="tab active" data-form-index="0">${formatName(p.name)}</div>
+            <div class="tab active" data-form-index="0">${activeTabLabel}</div>
             ${formsTabsHtml}
         </div>
 
@@ -499,7 +567,9 @@ function setupPokemonDetailNavigation(p) {
             const res = await fetch(`${API}/pokemon/${id}`);
             const data = await res.json();
             const el = document.querySelector(`#${elementId} .nav-name`);
-            if (el) el.textContent = data.name.charAt(0).toUpperCase() + data.name.slice(1);
+            if (el) {
+                el.textContent = formatName(data?.species?.name || data?.name);
+            }
         } catch (e) {
             console.error('Error fetching nav name', e);
         }
@@ -1128,7 +1198,10 @@ function renderEvolutionChain(chain) {
             function renderRadialCard(pokemonData) {
                 if (!pokemonData) return '';
                 const id = pokemonData.id;
-                const name = formatEvolutionName(pokemonData.name);
+                const speciesId = getSpeciesIdFromUrl(pokemonData?.species?.url) || id;
+                const name = (typeof formatPokemonDisplayName === 'function')
+                    ? formatPokemonDisplayName(pokemonData?.name, pokemonData?.species?.name)
+                    : formatEvolutionName(pokemonData.name);
                 const typesHtml = (pokemonData.types || []).map(t => {
                     const typeName = t.type.name;
                     return `<span class="evo-type-badge" style="background: ${TYPE_COLORS[typeName]}">${formatName(typeName)}</span>`;
@@ -1136,11 +1209,11 @@ function renderEvolutionChain(chain) {
 
                 return `
                     <div class="evo-pokemon-card">
-                        <div class="evo-card" data-action="open-pokemon" data-pokemon-id="${id}" style="cursor: pointer;">
+                        <div class="evo-card" data-action="open-pokemon" data-pokemon-id="${pokemonData.name}" style="cursor: pointer;">
                             <div class="evo-card-image">
-                                <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png" alt="${name}" class="evo-card-img" onerror="this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png'">
+                                <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/${id}.png" alt="${name}" class="evo-card-img" onerror="this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${speciesId}.png'">
                             </div>
-                            <div class="evo-card-number">#${String(id).padStart(4, '0')}</div>
+                            <div class="evo-card-number">#${String(speciesId).padStart(4, '0')}</div>
                             <div class="evo-card-name">${name}</div>
                             <div class="evo-card-types">${typesHtml}</div>
                         </div>
@@ -1326,19 +1399,52 @@ function renderEvolutionChain(chain) {
         }
 
         const id = pokemonData.id;
-        const name = formatEvolutionName(pokemonData.name);
+        const speciesId = getSpeciesIdFromUrl(pokemonData?.species?.url) || id;
+
+        const speciesSlug = String(pokemonData?.species?.name || '').toLowerCase();
+        const apiSlug = String(pokemonData?.name || '').toLowerCase();
+        const baseName = formatName(speciesSlug || apiSlug);
+        let formLabel = '';
+        if (speciesSlug && apiSlug.startsWith(speciesSlug + '-')) {
+            const suffix = apiSlug.slice(speciesSlug.length + 1);
+
+            const REGIONAL_FORM = {
+                alola: 'Alolan Form',
+                galar: 'Galarian Form',
+                hisui: 'Hisuian Form',
+                paldea: 'Paldean Form'
+            };
+
+            if (speciesSlug === 'rockruff' && suffix === 'own-tempo') {
+                formLabel = 'Own Tempo';
+            } else if (suffix === 'starter') {
+                formLabel = 'Partner';
+            } else if (REGIONAL_FORM[suffix]) {
+                formLabel = REGIONAL_FORM[suffix];
+            } else if (suffix === 'gmax' || suffix === 'gigantamax') {
+                formLabel = 'Gigantamax';
+            } else if (suffix.startsWith('mega')) {
+                const rest = suffix.replace(/^mega-?/, '').trim();
+                formLabel = rest ? `Mega ${formatName(rest)}` : 'Mega';
+            } else {
+                formLabel = `${formatName(suffix)} Form`;
+            }
+        }
+
+        const altText = formLabel ? `${baseName} - ${formLabel}` : baseName;
         const typesHtml = (pokemonData.types || []).map(t => {
             const typeName = t.type.name;
             return `<span class="evo-type-badge" style="background: ${TYPE_COLORS[typeName]}">${formatName(typeName)}</span>`;
         }).join('');
 
         return `
-            <div class="evo-stage" data-action="open-pokemon" data-pokemon-id="${id}">
+            <div class="evo-stage" data-action="open-pokemon" data-pokemon-id="${pokemonData.name}">
                 <div class="evo-card-image">
-                    <img class="evo-card-img" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png" alt="${name}" onerror="this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png'">
+                    <img class="evo-card-img" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/${id}.png" alt="${altText}" onerror="this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${speciesId}.png'">
                 </div>
-                <div class="evo-no">#${String(id).padStart(4, '0')}</div>
-                <div class="evo-name">${name}</div>
+                <div class="evo-no">#${String(speciesId).padStart(4, '0')}</div>
+                <div class="evo-name">${baseName}</div>
+                ${formLabel ? `<div class="evo-form">${formLabel}</div>` : ''}
                 <div class="evo-types">${typesHtml}</div>
             </div>
         `;
@@ -1486,6 +1592,24 @@ function renderEvolutionChain(chain) {
 
             // Base identifiers use species IDs (default forms).
             const baseIdentifiers = stageNodes.map(n => n.species.url.split('/').filter(Boolean).pop());
+
+            // Form-specific evolution overrides (species-based chains often omit form identifiers).
+            // Lycanroc: pick the correct form based on time-of-day.
+            for (let i = 1; i < stageNodes.length; i++) {
+                const dstSlug = String(stageNodes[i]?.species?.name || '').toLowerCase();
+                if (dstSlug !== 'lycanroc') continue;
+
+                const method = String(baseMethods[i - 1] || '').toLowerCase();
+                const tod = [];
+                if (method.includes(' at day')) tod.push('day');
+                if (method.includes(' at night')) tod.push('night');
+                if (method.includes(' at dusk')) tod.push('dusk');
+                if (tod.length !== 1) continue;
+
+                const pick = tod[0] === 'day' ? 'lycanroc-midday'
+                    : (tod[0] === 'night' ? 'lycanroc-midnight' : 'lycanroc-dusk');
+                baseIdentifiers[i] = pick;
+            }
 
             // If the chain includes a known form-only evolution as an extra stage (e.g. Linoone -> Obstagoon),
             // truncate the base row before that stage so the "default" row stays correct.

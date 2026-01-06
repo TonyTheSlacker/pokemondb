@@ -428,6 +428,86 @@ if (window.location.pathname.includes('abilities.html') || document.getElementBy
 }
 
 // ========== Ability Detail Page ==========
+function formatVersionGroupLabel(versionGroup) {
+    const key = String(versionGroup || '').trim().toLowerCase();
+    if (!key) return '';
+
+    const labels = {
+        'scarlet-violet': 'Scarlet & Violet',
+        'legends-arceus': 'Legends: Arceus',
+        'brilliant-diamond-shining-pearl': 'Brilliant Diamond & Shining Pearl',
+        'sword-shield': 'Sword & Shield',
+        'lets-go-pikachu-lets-go-eevee': "Let's Go Pikachu & Let's Go Eevee",
+        'ultra-sun-ultra-moon': 'Ultra Sun & Ultra Moon',
+        'sun-moon': 'Sun & Moon',
+        'omega-ruby-alpha-sapphire': 'Omega Ruby & Alpha Sapphire',
+        'x-y': 'X & Y',
+        'black-2-white-2': 'Black 2 & White 2',
+        'black-white': 'Black & White',
+        'heartgold-soulsilver': 'HeartGold & SoulSilver',
+        'platinum': 'Platinum',
+        'diamond-pearl': 'Diamond & Pearl',
+        'firered-leafgreen': 'FireRed & LeafGreen',
+        'emerald': 'Emerald',
+        'ruby-sapphire': 'Ruby & Sapphire',
+        'gold-silver': 'Gold & Silver',
+        'crystal': 'Crystal',
+        'red-blue': 'Red & Blue',
+        'yellow': 'Yellow'
+    };
+
+    return labels[key] || formatName(key);
+}
+
+function versionGroupBadgeMeta(versionGroup) {
+    const key = String(versionGroup || '').trim().toLowerCase();
+    const meta = {
+        'scarlet-violet': { badge: 'SV', color: TYPE_COLORS.fire },
+        'legends-arceus': { badge: 'LA', color: TYPE_COLORS.psychic },
+        'brilliant-diamond-shining-pearl': { badge: 'BDSP', color: TYPE_COLORS.rock },
+        'sword-shield': { badge: 'SWSH', color: TYPE_COLORS.steel },
+        'lets-go-pikachu-lets-go-eevee': { badge: 'LGPE', color: TYPE_COLORS.electric },
+        'ultra-sun-ultra-moon': { badge: 'USUM', color: TYPE_COLORS.dragon },
+        'sun-moon': { badge: 'SM', color: TYPE_COLORS.grass },
+        'omega-ruby-alpha-sapphire': { badge: 'ORAS', color: TYPE_COLORS.water },
+        'x-y': { badge: 'XY', color: TYPE_COLORS.fairy },
+        'black-2-white-2': { badge: 'B2W2', color: TYPE_COLORS.dark },
+        'black-white': { badge: 'BW', color: TYPE_COLORS.dark },
+        'heartgold-soulsilver': { badge: 'HGSS', color: TYPE_COLORS.steel },
+        'platinum': { badge: 'PLAT', color: TYPE_COLORS.ghost },
+        'diamond-pearl': { badge: 'DP', color: TYPE_COLORS.rock },
+        'firered-leafgreen': { badge: 'FRLG', color: TYPE_COLORS.fire },
+        'ruby-sapphire': { badge: 'RS', color: TYPE_COLORS.water },
+        'emerald': { badge: 'E', color: TYPE_COLORS.water },
+        'gold-silver': { badge: 'GS', color: TYPE_COLORS.electric },
+        'crystal': { badge: 'C', color: TYPE_COLORS.ice },
+        'red-blue': { badge: 'RB', color: TYPE_COLORS.normal },
+        'yellow': { badge: 'Y', color: TYPE_COLORS.electric }
+    };
+    return meta[key] || null;
+}
+
+function pickPokemonSpriteForAbilityCard(pokeData) {
+    // Prefer the latest, consistent sprite set (Pokémon HOME).
+    const home = pokeData?.sprites?.other?.home?.front_default;
+    if (home) return home;
+
+    const official = pokeData?.sprites?.other?.['official-artwork']?.front_default;
+    if (official) return official;
+
+    const front = pokeData?.sprites?.front_default;
+    if (front) return front;
+
+    const id = pokeData?.id;
+    if (id) return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/${id}.png`;
+    return '';
+}
+
+function getSpeciesIdFromUrl(url) {
+    const m = String(url || '').match(/\/(\d+)\/?$/);
+    return m ? parseInt(m[1], 10) : null;
+}
+
 async function loadAbilityDetail() {
     const urlParams = new URLSearchParams(window.location.search);
     const abilityParam = urlParams.get('ability');
@@ -464,22 +544,46 @@ async function loadAbilityDetail() {
             if (entry.language.name === 'en') {
                 const game = entry.version_group?.name || 'Unknown';
                 if (!gameDescsByGame[game]) {
-                    gameDescsByGame[game] = entry.flavor_text;
+                    gameDescsByGame[game] = normalizeFlavorText(entry.flavor_text);
                 }
             }
         });
         
         if (gameDescDiv) {
             if (Object.keys(gameDescsByGame).length > 0) {
-                const gameDescHtml = Object.entries(gameDescsByGame)
-                    .map(([game, text]) => `
-                        <div class="game-desc-item">
-                            <div class="game-desc-game">${game.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>
-                            <div class="game-desc-text">${text}</div>
-                        </div>
-                    `)
-                    .join('');
-                gameDescDiv.innerHTML = gameDescHtml;
+                const rows = Object.entries(gameDescsByGame)
+                    .map(([game, text]) => {
+                        const gen = VERSION_GROUP_TO_GEN?.[game];
+                        return { game, text, gen: Number.isFinite(gen) ? gen : null };
+                    })
+                    .sort((a, b) => {
+                        const ga = a.gen ?? -1;
+                        const gb = b.gen ?? -1;
+                        // Newer games first, then name
+                        if (gb !== ga) return gb - ga;
+                        return String(a.game).localeCompare(String(b.game));
+                    });
+
+                gameDescDiv.innerHTML = rows
+                    .map(({ game, text, gen }) => {
+                        const badgeMeta = versionGroupBadgeMeta(game);
+                        const icon = badgeMeta
+                            ? `<span class="game-desc-icon" style="background:${badgeMeta.color}" title="Gen ${gen || '?'}">${badgeMeta.badge}</span>`
+                            : '';
+
+                        const label = formatVersionGroupLabel(game);
+
+                        return `
+                            <div class="game-desc-item">
+                                <div class="game-desc-head">
+                                    ${icon}
+                                    <div class="game-desc-game">${label}</div>
+                                </div>
+                                <div class="game-desc-text">${text}</div>
+                            </div>
+                        `;
+                    })
+                    .join('') || '<p style="color: #8b92a5;">No game descriptions available</p>';
             } else {
                 gameDescDiv.innerHTML = '<p style="color: #8b92a5;">No game descriptions available</p>';
             }
@@ -556,6 +660,9 @@ async function loadAbilityDetail() {
             if (regularPokemon.length > 0) {
                 if (regularTitle) regularTitle.textContent = `Pokémon with ${abilityName}`;
                 const regularHtml = regularPokemon.map(poke => {
+                    const spriteUrl = pickPokemonSpriteForAbilityCard(poke);
+                    const speciesName = poke?.species?.name || poke.name;
+                    const speciesId = getSpeciesIdFromUrl(poke?.species?.url) || poke.id;
                     const typeTags = poke.types.map(t => {
                         const typeName = t.type.name;
                         const typeColor = TYPE_COLORS[typeName] || '#777';
@@ -563,13 +670,13 @@ async function loadAbilityDetail() {
                     }).join('');
                     
                     return `
-                    <a href="${PAGES_PREFIX}pokemon-detail.html?id=${poke.id}" class="pokemon-card-ability">
+                    <a href="${PAGES_PREFIX}pokemon-detail.html?id=${encodeURIComponent(speciesName)}" class="pokemon-card-ability">
                         <div class="pokemon-card-header">
-                            <div class="pokemon-name-ability">${poke.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>
-                            <div class="pokemon-dex-ability">#${String(poke.id).padStart(4, '0')}</div>
+                            <div class="pokemon-name-ability">${formatName(poke.name)}</div>
+                            <div class="pokemon-dex-ability">#${String(speciesId).padStart(4, '0')}</div>
                         </div>
                         <div class="pokemon-img-ability">
-                            <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${poke.id}.png" alt="${poke.name}" onerror="this.style.display='none';">
+                            <img src="${spriteUrl}" alt="${poke.name}" onerror="this.style.display='none';">
                         </div>
                         <div class="pokemon-species-ability">${typeTags}</div>
                     </a>
@@ -585,6 +692,9 @@ async function loadAbilityDetail() {
                 hiddenSection.style.display = 'block';
                 if (hiddenTitle) hiddenTitle.textContent = `${abilityName} as a hidden ability`;
                 const hiddenHtml = hiddenPokemon.map(poke => {
+                    const spriteUrl = pickPokemonSpriteForAbilityCard(poke);
+                    const speciesName = poke?.species?.name || poke.name;
+                    const speciesId = getSpeciesIdFromUrl(poke?.species?.url) || poke.id;
                     const typeTags = poke.types.map(t => {
                         const typeName = t.type.name;
                         const typeColor = TYPE_COLORS[typeName] || '#777';
@@ -592,13 +702,13 @@ async function loadAbilityDetail() {
                     }).join('');
                     
                     return `
-                    <a href="${PAGES_PREFIX}pokemon-detail.html?id=${poke.id}" class="pokemon-card-ability">
+                    <a href="${PAGES_PREFIX}pokemon-detail.html?id=${encodeURIComponent(speciesName)}" class="pokemon-card-ability">
                         <div class="pokemon-card-header">
-                            <div class="pokemon-name-ability">${poke.name.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>
-                            <div class="pokemon-dex-ability">#${String(poke.id).padStart(4, '0')}</div>
+                            <div class="pokemon-name-ability">${formatName(poke.name)}</div>
+                            <div class="pokemon-dex-ability">#${String(speciesId).padStart(4, '0')}</div>
                         </div>
                         <div class="pokemon-img-ability">
-                            <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${poke.id}.png" alt="${poke.name}" onerror="this.style.display='none';">
+                            <img src="${spriteUrl}" alt="${poke.name}" onerror="this.style.display='none';">
                         </div>
                         <div class="pokemon-species-ability">${typeTags}</div>
                     </a>
@@ -779,14 +889,37 @@ async function loadMoveDetail() {
                 if (!byGame.has(e.game)) byGame.set(e.game, e.text);
             }
 
-            const html = [...byGame.entries()]
-                .slice(0, 16)
-                .map(([game, text]) => `
-                    <div class="game-desc-item">
-                        <div class="game-desc-game">${formatName(game)}</div>
-                        <div class="game-desc-text">${text}</div>
-                    </div>
-                `)
+            const rows = [...byGame.entries()]
+                .map(([game, text]) => {
+                    const gen = VERSION_GROUP_TO_GEN?.[game];
+                    return { game, text, gen: Number.isFinite(gen) ? gen : null };
+                })
+                .sort((a, b) => {
+                    const ga = a.gen ?? -1;
+                    const gb = b.gen ?? -1;
+                    if (gb !== ga) return gb - ga;
+                    return String(a.game).localeCompare(String(b.game));
+                })
+                .slice(0, 16);
+
+            const html = rows
+                .map(({ game, text, gen }) => {
+                    const badgeMeta = versionGroupBadgeMeta(game);
+                    const icon = badgeMeta
+                        ? `<span class="game-desc-icon" style="background:${badgeMeta.color}" title="Gen ${gen || '?'}">${badgeMeta.badge}</span>`
+                        : '';
+                    const label = formatVersionGroupLabel(game);
+
+                    return `
+                        <div class="game-desc-item">
+                            <div class="game-desc-head">
+                                ${icon}
+                                <div class="game-desc-game">${label}</div>
+                            </div>
+                            <div class="game-desc-text">${text}</div>
+                        </div>
+                    `;
+                })
                 .join('');
 
             gameEl.innerHTML = html || '<p style="color: #8b92a5;">No game descriptions available</p>';
@@ -913,6 +1046,30 @@ async function fetchMoveLearnDataForPokemonList(pokemonRefs, moveName, preferred
     const results = [];
     const BATCH_SIZE = 20;
 
+    function buildPokemonDisplayName(species, formApiName) {
+        const speciesName = String(species || '').trim();
+        const formName = String(formApiName || '').trim();
+        if (!speciesName) return formatName(formName || speciesName);
+
+        const speciesPretty = formatName(speciesName);
+        if (!formName || formName.toLowerCase() === speciesName.toLowerCase()) return speciesPretty;
+
+        // Prefer PokemonDB-style "Species-Form" everywhere.
+        const prefix = speciesName.toLowerCase() + '-';
+        const lowerForm = formName.toLowerCase();
+        if (lowerForm.startsWith(prefix)) {
+            const suffix = formName.slice(speciesName.length + 1);
+            const suffixPretty = String(suffix)
+                .split('-')
+                .filter(Boolean)
+                .map(part => formatName(part))
+                .join('-');
+            return `${speciesPretty}-${suffixPretty}`;
+        }
+
+        return formatName(formName);
+    }
+
     for (let i = 0; i < list.length; i += BATCH_SIZE) {
         const batch = list.slice(i, i + BATCH_SIZE);
         if (progressEl) progressEl.textContent = `Loading learnsets… (${Math.min(i + BATCH_SIZE, list.length)}/${list.length})`;
@@ -923,12 +1080,29 @@ async function fetchMoveLearnDataForPokemonList(pokemonRefs, moveName, preferred
                 const data = cached || await fetch(`${API}/pokemon/${item.id}`).then(r => r.json());
                 if (!cached) pokemonDetailsCache[item.id] = data;
 
+                // Exclude Mega forms from learned-by lists.
+                // (PokeAPI uses names like "heracross-mega", "charizard-mega-x", etc.)
+                const apiName = String(item.apiName || data?.name || '').toLowerCase();
+                if (apiName.includes('-mega')) return null;
+
                 const learn = extractLearnForMove(data, moveName, preferredVersionGroup);
+
+                const speciesName = data?.species?.name || item.apiName || data?.name || '';
+                const speciesId = getSpeciesIdFromUrl(data?.species?.url) || data?.id || item.id;
+                const spriteUrl = pickPokemonSpriteForAbilityCard(data);
+
+                const formApiName = item.apiName || data?.name || '';
+                const displayName = buildPokemonDisplayName(speciesName, formApiName);
+                const isDefaultForm = !!speciesName && String(data?.name || '').toLowerCase() === String(speciesName).toLowerCase();
                 return {
                     id: item.id,
-                    name: formatName(item.apiName || data.name),
+                    name: displayName,
+                    speciesName,
+                    speciesId,
+                    spriteUrl,
                     egg: learn.egg,
-                    level: learn.level
+                    level: learn.level,
+                    isDefaultForm
                 };
             } catch (e) {
                 console.error('Error fetching pokemon learnset', item, e);
@@ -940,39 +1114,74 @@ async function fetchMoveLearnDataForPokemonList(pokemonRefs, moveName, preferred
     }
 
     if (progressEl) progressEl.textContent = '';
-    return results;
+
+    // Dedupe only when the move-learning signature matches.
+    // This collapses cosmetic forms (colors) but keeps distinct learnsets separate (e.g., Lycanroc forms).
+    const bySignature = new Map();
+    for (const r of results) {
+        const speciesKey = r?.speciesName || String(r?.speciesId || r?.id || '');
+        if (!speciesKey) continue;
+
+        const lvl = (r.level == null) ? '' : String(r.level);
+        const sig = `${speciesKey}|egg:${r.egg ? '1' : '0'}|lvl:${lvl}`;
+
+        const existing = bySignature.get(sig);
+        if (!existing) {
+            bySignature.set(sig, { ...r });
+            continue;
+        }
+
+        // When merging (same signature), display should collapse to the base species.
+        existing.name = formatName(existing.speciesName || existing.name);
+
+        // Prefer default form sprite/id when available.
+        if (!existing.isDefaultForm && r.isDefaultForm) {
+            existing.id = r.id;
+            existing.spriteUrl = r.spriteUrl;
+            existing.isDefaultForm = true;
+        }
+    }
+
+    return Array.from(bySignature.values());
 }
 
 function renderLearnedCardWithLevel(p) {
-    const href = `${PAGES_PREFIX}pokemon-detail.html?id=${p.id}`;
-    const sprite = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png`;
+    const href = `${PAGES_PREFIX}pokemon-detail.html?id=${encodeURIComponent(p.speciesName || p.id)}`;
+    const sprite = p.spriteUrl || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/${p.id}.png`;
     const displayName = formatName(p.name);
+    const dexNo = p.speciesId || p.id;
     return `
-        <a class="learned-card" href="${href}">
-            <div class="learned-sprite">
+        <a href="${href}" class="pokemon-card-ability">
+            <div class="pokemon-card-header">
+                <div class="pokemon-name-ability">${displayName}</div>
+                <div class="pokemon-dex-ability">#${String(dexNo).padStart(4, '0')}</div>
+            </div>
+            <div class="pokemon-img-ability">
                 <img src="${sprite}" alt="${displayName}" onerror="this.style.display='none'">
             </div>
-            <div class="learned-text">
-                <div class="learned-name">${displayName}</div>
-                <div class="learned-level">Lv. ${p.level}</div>
-                <div class="learned-id">#${String(p.id).padStart(4, '0')}</div>
+            <div class="pokemon-species-ability">
+                <span class="learned-tag">Lv. ${p.level}</span>
             </div>
         </a>
     `;
 }
 
 function renderLearnedCardNoLevel(p) {
-    const href = `${PAGES_PREFIX}pokemon-detail.html?id=${p.id}`;
-    const sprite = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png`;
+    const href = `${PAGES_PREFIX}pokemon-detail.html?id=${encodeURIComponent(p.speciesName || p.id)}`;
+    const sprite = p.spriteUrl || `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/${p.id}.png`;
     const displayName = formatName(p.name);
+    const dexNo = p.speciesId || p.id;
     return `
-        <a class="learned-card" href="${href}">
-            <div class="learned-sprite">
+        <a href="${href}" class="pokemon-card-ability">
+            <div class="pokemon-card-header">
+                <div class="pokemon-name-ability">${displayName}</div>
+                <div class="pokemon-dex-ability">#${String(dexNo).padStart(4, '0')}</div>
+            </div>
+            <div class="pokemon-img-ability">
                 <img src="${sprite}" alt="${displayName}" onerror="this.style.display='none'">
             </div>
-            <div class="learned-text">
-                <div class="learned-name">${displayName}</div>
-                <div class="learned-id">#${String(p.id).padStart(4, '0')}</div>
+            <div class="pokemon-species-ability">
+                <span class="learned-tag">Egg</span>
             </div>
         </a>
     `;

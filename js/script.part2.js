@@ -11,8 +11,8 @@ function getPokedexSpritePreset(dexId, dexName) {
   const id = dexId;
   const name = String(dexName || '').toLowerCase();
 
-  // Default / "All Pokémon"
-  if (id === 'all' || name.includes('all pok')) return { kind: 'default' };
+  // Default / "All Pokémon": use latest (HOME) sprites.
+  if (id === 'all' || name.includes('all pok')) return { kind: 'home' };
 
   // Gen 9
   if (id === 'paldea' || (name.includes('scarlet') && name.includes('violet'))) return { kind: 'home' };
@@ -61,8 +61,8 @@ function getPokedexSpritePreset(dexId, dexName) {
   if (name.includes('yellow')) return { kind: 'versions', gen: 'generation-i', game: 'yellow' };
   if (name.includes('red') || name.includes('blue')) return { kind: 'versions', gen: 'generation-i', game: 'red-blue' };
 
-  // Fallback
-  return { kind: 'default' };
+  // Fallback: use latest (HOME) sprites.
+  return { kind: 'home' };
 }
 
 function getPokedexSpriteUrl(pokemonId, dexContext) {
@@ -102,6 +102,12 @@ function ensurePokedexMenuExpanded() {
   if (menu) menu.style.display = 'block';
   const toggle = document.querySelector('[data-action="toggle-pokedex-menu"]');
   if (toggle) toggle.classList.add('expanded');
+}
+
+function isElementHidden(el) {
+  if (!el) return true;
+  // Prefer computed style since many pages don't set inline display styles.
+  return window.getComputedStyle(el).display === 'none';
 }
 
 function setActiveDexInSidebar(dexId, triggerEl) {
@@ -246,10 +252,11 @@ function buildLearnsetData(pokemonData) {
 function renderLearnsetSectionHtml(pokemonData, learnsetKey) {
     const data = learnsetStore[learnsetKey];
     const gens = Object.keys(data || {}).map(n => parseInt(n, 10)).filter(n => !Number.isNaN(n)).sort((a, b) => a - b);
+  const pokemonDisplay = formatPokemonDisplayNameFromData(pokemonData);
     if (!gens.length) {
         return `
-            <div class="full-width-section learnset-section" data-learnset-key="${learnsetKey}">
-                <h3 class="section-header">Moves learned by ${pokemonData.name.replace(/\b\w/g, l => l.toUpperCase())}</h3>
+      <div class="full-width-section learnset-section" data-learnset-key="${learnsetKey}" data-pokemon-display="${escapeHtmlAttr(pokemonDisplay)}">
+        <h3 class="section-header">Moves learned by ${pokemonDisplay}</h3>
                 <div class="learnset-empty">No move learnset data available.</div>
             </div>
         `;
@@ -263,8 +270,8 @@ function renderLearnsetSectionHtml(pokemonData, learnsetKey) {
     }).join('');
 
     return `
-        <div class="full-width-section learnset-section" data-learnset-key="${learnsetKey}" data-active-gen="${activeGen}">
-            <h3 class="section-header">Moves learned by ${pokemonData.name.charAt(0).toUpperCase() + pokemonData.name.slice(1)}</h3>
+      <div class="full-width-section learnset-section" data-learnset-key="${learnsetKey}" data-active-gen="${activeGen}" data-pokemon-display="${escapeHtmlAttr(pokemonDisplay)}">
+        <h3 class="section-header">Moves learned by ${pokemonDisplay}</h3>
             <div class="learnset-genbar">
                 <div class="learnset-genlabel">In other generations</div>
                 <div class="learnset-gens">${genButtons}</div>
@@ -355,7 +362,7 @@ function renderLearnsetTables(section, gen, vg) {
     const data = learnsetStore[key] || {};
     const methods = (data[gen] && data[gen][vg]) ? data[gen][vg] : {};
 
-    const pokemonName = (document.querySelector('.detail-h1')?.textContent || 'This Pokémon').trim();
+    const pokemonName = String(section.dataset.pokemonDisplay || (document.querySelector('.detail-h1')?.textContent || 'This Pokémon')).trim();
     const gameName = getVersionGroupDisplayName(vg);
 
     const levelMoves = methods['level-up'] || [];
@@ -591,11 +598,17 @@ function setupDamageClasses() {
 }
 
 function togglePokedexMenu(triggerEl) {
-  // Always keep the Pokédex menu expanded.
   const menu = document.getElementById('pokedexSubMenu');
   const item = triggerEl;
-  if (menu) menu.style.display = 'block';
-  if (item) item.classList.add('expanded');
+  if (!menu || !item) return;
+
+  if (isElementHidden(menu)) {
+    menu.style.display = 'block';
+    item.classList.add('expanded');
+  } else {
+    menu.style.display = 'none';
+    item.classList.remove('expanded');
+  }
 }
 
 function toggleEggGroupMenu(triggerEl) {
@@ -929,6 +942,7 @@ const NAME_OVERRIDES = {
     'type-null': 'Type: Null',
     'ho-oh': 'Ho-Oh',
     'porygon-z': 'Porygon-Z',
+    'eevee-starter': 'Partner Eevee',
     'jangmo-o': 'Jangmo-o',
     'hakamo-o': 'Hakamo-o',
     'kommo-o': 'Kommo-o',
@@ -973,6 +987,42 @@ function formatName(n) {
   }
 
   return s.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function escapeHtmlAttr(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+// Pokemon names sometimes need different display rules than moves/types.
+// For forms, prefer "Species-Form" (e.g. Lycanroc-Dusk) everywhere.
+function formatPokemonDisplayName(apiName, speciesName) {
+  const raw = String(apiName || '').trim();
+  if (!raw) return '';
+
+  const species = String(speciesName || '').trim();
+  const rawLower = raw.toLowerCase();
+  const speciesLower = species.toLowerCase();
+
+  if (species && rawLower.startsWith(speciesLower + '-')) {
+    const suffix = raw.slice(species.length + 1);
+    const suffixPretty = suffix
+      .split('-')
+      .filter(Boolean)
+      .map(part => formatName(part))
+      .join('-');
+    return `${formatName(species)}-${suffixPretty}`;
+  }
+
+  // Default: keep existing PokemonDB-style formatting.
+  return formatName(raw);
+}
+
+function formatPokemonDisplayNameFromData(pokemonData) {
+  return formatPokemonDisplayName(pokemonData?.name, pokemonData?.species?.name);
 }
 
 function sortMoves(field) {

@@ -1,11 +1,16 @@
 /* Ability Detail Page Styles */
 
+/* Slightly tighter content padding on this page (override global). */
+.main-content {
+  padding: 22px;
+}
+
 .ability-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2.5rem;
-  padding-bottom: 1.5rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.9rem;
   border-bottom: 2px solid rgba(74, 158, 255, 0.2);
   position: relative;
 }
@@ -21,7 +26,7 @@
 }
 
 .ability-title {
-  font-size: 2.75rem;
+  font-size: 2.1rem;
   font-weight: 800;
   color: #fff;
   margin: 0;
@@ -57,30 +62,30 @@
 
 .ability-two-column {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 1.25rem;
   align-items: start;
 }
 
 .ability-left-column {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.25rem;
 }
 
 .ability-right-column {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.25rem;
   position: sticky;
-  top: 2rem;
+  top: 1rem;
 }
 
 .detail-section {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  padding: 2rem;
+  border-radius: 14px;
+  padding: 1.25rem;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
@@ -90,19 +95,19 @@
 }
 
 .detail-section h2 {
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   font-weight: 700;
   color: #fff;
-  margin: 0 0 1.5rem 0;
-  padding-bottom: 1rem;
+  margin: 0 0 0.9rem 0;
+  padding-bottom: 0.6rem;
   border-bottom: 2px solid rgba(74, 158, 255, 0.2);
   letter-spacing: -0.3px;
 }
 
 .effect-text {
-  font-size: 1.05rem;
+  font-size: 0.98rem;
   color: #d1d5db;
-  line-height: 1.8;
+  line-height: 1.6;
   font-weight: 400;
 }
 
@@ -110,38 +115,55 @@
 .game-descriptions {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.6rem;
 }
 
 .game-desc-item {
-  background: linear-gradient(90deg, rgba(74, 158, 255, 0.08) 0%, rgba(74, 158, 255, 0.02) 100%);
-  border-left: 3px solid #4a9eff;
-  padding: 1.25rem 1.5rem;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-  border: 1px solid rgba(74, 158, 255, 0.1);
-  border-left: 3px solid #4a9eff;
+  background: rgba(74, 158, 255, 0.05);
+  padding: 0.8rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid rgba(74, 158, 255, 0.14);
 }
 
 .game-desc-item:hover {
-  background: linear-gradient(90deg, rgba(74, 158, 255, 0.12) 0%, rgba(74, 158, 255, 0.04) 100%);
-  border-left-color: #6bb3ff;
-  transform: translateX(4px);
-  box-shadow: 0 4px 12px rgba(74, 158, 255, 0.15);
+  background: rgba(74, 158, 255, 0.08);
+}
+
+.game-desc-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.game-desc-icon {
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #f5f7ff;
 }
 
 .game-desc-game {
   color: #6bb3ff;
   font-weight: 700;
-  margin-bottom: 0.5rem;
-  font-size: 0.9rem;
+  margin-bottom: 0;
+  font-size: 0.92rem;
   letter-spacing: 0.3px;
 }
 
 .game-desc-text {
   color: #d1d5db;
-  font-size: 0.95rem;
-  line-height: 1.7;
+  font-size: 0.92rem;
+  line-height: 1.55;
 }
 
 /* Languages Table */
@@ -157,9 +179,9 @@
 
 .lang-row {
   display: grid;
-  grid-template-columns: 180px 1fr;
-  gap: 2rem;
-  padding: 1.1rem 1.75rem;
+  grid-template-columns: 140px 1fr;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   align-items: center;
   transition: background 0.2s ease;
@@ -193,16 +215,16 @@
 /* Pokémon Grid */
 .pokemon-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 16px;
-  padding: 0.5rem 0;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  padding: 0.25rem 0;
 }
 
 .pokemon-card-ability {
   background: #151928;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
-  padding: 16px;
+  padding: 12px;
   cursor: pointer;
   transition: all 300ms;
   position: relative;
@@ -234,7 +256,7 @@
   display: flex;
   justify-content: space-between;
   align-items: start;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   gap: 8px;
   position: relative;
   z-index: 1;
@@ -242,13 +264,13 @@
 
 .pokemon-img-ability {
   width: 100%;
-  height: 140px;
+  height: 104px;
   background: linear-gradient(135deg, rgba(59, 213, 255, 0.08), rgba(100, 150, 255, 0.08));
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   border: 1px solid rgba(59, 213, 255, 0.1);
   position: relative;
   z-index: 1;
@@ -259,8 +281,8 @@
 }
 
 .pokemon-img-ability img {
-  max-width: 100px;
-  max-height: 100px;
+  max-width: 80px;
+  max-height: 80px;
   object-fit: contain;
   image-rendering: pixelated;
   transition: transform 300ms;
@@ -279,7 +301,7 @@
 .pokemon-name-ability {
   color: #f5f7ff;
   font-weight: 700;
-  font-size: 16px;
+  font-size: 14px;
   text-decoration: none;
   transition: color 0.2s;
   display: block;
@@ -296,13 +318,13 @@
   gap: 6px;
   flex-wrap: wrap;
   font-size: 11px;
-  margin-top: 8px;
+  margin-top: 6px;
   position: relative;
   z-index: 1;
 }
 
 .pokemon-type-tag {
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: 6px;
   color: white;
   font-weight: 600;
@@ -337,33 +359,33 @@
   }
 
   .ability-title {
-    font-size: 2rem;
+    font-size: 1.75rem;
   }
 
   .detail-section {
-    padding: 1.5rem;
+    padding: 1.1rem;
   }
 
   .detail-section h2 {
-    font-size: 1.25rem;
+    font-size: 1.15rem;
   }
 
   .lang-row {
-    grid-template-columns: 140px 1fr;
+    grid-template-columns: 120px 1fr;
     gap: 1rem;
-    padding: 1rem 1.25rem;
+    padding: 0.7rem 1rem;
   }
 
   .pokemon-grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     gap: 12px;
   }
 
   .pokemon-img-ability {
-    height: 120px;
+    height: 104px;
   }
   
   .pokemon-card-ability {
-    padding: 14px;
+    padding: 12px;
   }
 }

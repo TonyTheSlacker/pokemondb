@@ -131,12 +131,34 @@ body {
 }
 
 .sub-nav-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   padding: 6px 24px 6px 36px;
   color: #8b92a5;
   text-decoration: none;
   font-size: 14px;
   transition: color 0.2s;
+}
+
+.sub-nav-label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dex-badge {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.08);
+  color: #f5f7ff;
 }
 
 .sub-nav-item:hover {
