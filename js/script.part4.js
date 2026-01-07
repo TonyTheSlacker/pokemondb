@@ -197,6 +197,716 @@ function renderTypes(card, types) {
     typeContainer.innerHTML = typesHtml;
 }
 
+// ========== Items Page ==========
+let allItems = [];
+let currentItemsView = 'grid';
+let itemCategoryByName = {};
+let allItemCategories = [];
+const itemDetailsCache = {};
+const itemDetailsInFlight = {};
+let itemDescObserver = null;
+
+function getIdFromApiUrl(url) {
+    const raw = String(url || '');
+    const parts = raw.split('/').filter(Boolean);
+    const last = parts[parts.length - 1];
+    const n = parseInt(last, 10);
+    return Number.isFinite(n) ? n : null;
+}
+
+function formatItemDisplayName(name) {
+    return String(name || '')
+        .replace(/-/g, ' ')
+        .replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function formatItemCategoryDisplayName(name) {
+    return String(name || '')
+        .replace(/-/g, ' ')
+        .replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function getItemSpriteUrl(itemName) {
+    const n = String(itemName || '').toLowerCase();
+    if (!n) return '';
+    // Uses the PokeAPI sprites repository (fast, avoids N+1 item detail fetches).
+    return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${encodeURIComponent(n)}.png`;
+}
+
+function getItemSpriteFallbackUrls(itemName) {
+    const n = String(itemName || '').toLowerCase();
+    if (!n) return [];
+
+    const noHyphen = n.replace(/-/g, '');
+
+    // Order matters: try the most “canonical” first.
+    return [
+        getItemSpriteUrl(n),
+
+        // Pokémon Showdown has a very complete set of item icons.
+        // Naming is usually without hyphens.
+        `https://play.pokemonshowdown.com/sprites/itemicons/${encodeURIComponent(noHyphen)}.png`,
+        `https://play.pokemonshowdown.com/sprites/itemicons/${encodeURIComponent(n)}.png`,
+    ];
+}
+
+function handleItemImgError(imgEl) {
+    try {
+        const el = imgEl;
+        const name = String(el?.dataset?.itemSpriteName || el?.dataset?.itemName || '').toLowerCase();
+        const list = getItemSpriteFallbackUrls(name);
+        if (!list.length) {
+            el.style.visibility = 'hidden';
+            return;
+        }
+
+        const idx = parseInt(el.dataset.fallbackIdx || '0', 10) || 0;
+        const nextIdx = idx + 1;
+        el.dataset.fallbackIdx = String(nextIdx);
+
+        if (nextIdx < list.length) {
+            // Try the next URL.
+            el.src = list[nextIdx];
+            return;
+        }
+
+        // All fallbacks failed; keep column alignment but hide the icon.
+        el.style.visibility = 'hidden';
+    } catch {
+        // Defensive fallback.
+        try { imgEl.style.visibility = 'hidden'; } catch { /* ignore */ }
+    }
+}
+
+function setItemsView(view, triggerEl) {
+    const v = (String(view || '').toLowerCase() === 'list') ? 'list' : 'grid';
+    currentItemsView = v;
+
+    try {
+        window.localStorage.setItem('itemsView', v);
+    } catch {
+        // ignore
+    }
+
+    const grid = document.getElementById('itemsGrid');
+    const list = document.getElementById('itemsList');
+    if (grid) grid.style.display = (v === 'grid') ? '' : 'none';
+    if (list) list.style.display = (v === 'list') ? '' : 'none';
+
+    const btns = document.querySelectorAll('[data-action="set-items-view"]');
+    btns.forEach(btn => {
+        const isActive = String(btn.dataset.view || '').toLowerCase() === v;
+        btn.classList.toggle('active', isActive);
+        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+
+    // If a specific trigger was clicked, ensure it gets the active state even if
+    // the selector query above is scoped differently.
+    if (triggerEl) {
+        triggerEl.classList.add('active');
+        triggerEl.setAttribute('aria-pressed', 'true');
+    }
+
+    // IMPORTANT: when switching from Grid -> List, the list may still be showing
+    // the initial "Loading..." placeholder (because we only render the active view).
+    // Re-render on view switch once data exists.
+    if (Array.isArray(allItems) && allItems.length) {
+        renderItems();
+    }
+}
+
+function getItemsSearchQuery() {
+    const input = document.getElementById('itemsSearch');
+    return String(input?.value || '').trim().toLowerCase();
+}
+
+function getItemsCategoryFilter() {
+    const sel = document.getElementById('itemsCategory');
+    const v = String(sel?.value || 'all').toLowerCase();
+    return v || 'all';
+}
+
+function getEnglishItemDescription(itemDetail) {
+    const d = itemDetail || {};
+
+    const effect = Array.isArray(d.effect_entries)
+        ? d.effect_entries.find(e => e?.language?.name === 'en')
+        : null;
+    const shortEffect = String(effect?.short_effect || '').trim();
+    if (shortEffect) return shortEffect.replace(/\s+/g, ' ');
+
+    const flavor = Array.isArray(d.flavor_text_entries)
+        ? d.flavor_text_entries.find(e => e?.language?.name === 'en')
+        : null;
+    const flavorText = String(flavor?.text || '').trim();
+    if (flavorText) return flavorText.replace(/[\f\n\r\t]+/g, ' ').replace(/\s+/g, ' ');
+
+    return '';
+}
+
+async function fetchItemDetailByName(itemName) {
+    const name = String(itemName || '').toLowerCase();
+    if (!name) return null;
+    if (itemDetailsCache[name]) return itemDetailsCache[name];
+    if (itemDetailsInFlight[name]) return itemDetailsInFlight[name];
+
+    itemDetailsInFlight[name] = (async () => {
+        try {
+            const res = await fetch(`${API}/item/${encodeURIComponent(name)}`);
+            if (!res.ok) throw new Error(`HTTP ${res.status} for item/${name}`);
+            const detail = await res.json();
+            itemDetailsCache[name] = detail;
+            return detail;
+        } catch (e) {
+            console.warn('Item detail fetch failed:', name, e);
+            itemDetailsCache[name] = null;
+            return null;
+        } finally {
+            delete itemDetailsInFlight[name];
+        }
+    })();
+
+    return itemDetailsInFlight[name];
+}
+
+function ensureItemDescObserver() {
+    if (itemDescObserver) return itemDescObserver;
+
+    itemDescObserver = new IntersectionObserver(async (entries, obs) => {
+        for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+            const row = entry.target;
+            const name = row?.dataset?.itemName;
+            if (!name) {
+                obs.unobserve(row);
+                continue;
+            }
+
+            // Avoid refetching if we already have description.
+            const cached = itemDetailsCache[String(name).toLowerCase()];
+            if (cached && getEnglishItemDescription(cached)) {
+                obs.unobserve(row);
+                continue;
+            }
+
+            const detail = await fetchItemDetailByName(name);
+            const desc = detail ? getEnglishItemDescription(detail) : '';
+
+            // Update all visible rows with this item name (in case of re-renders)
+            document.querySelectorAll(`.item-row[data-item-name="${CSS.escape(String(name).toLowerCase())}"] .item-desc`).forEach(el => {
+                el.textContent = desc || '—';
+                el.classList.remove('loading');
+            });
+
+            obs.unobserve(row);
+        }
+    }, { rootMargin: '400px' });
+
+    return itemDescObserver;
+}
+
+async function loadItemCategoryMap() {
+    // Build a name -> category map using item-category endpoints.
+    // This avoids N+1 item detail requests just to get categories.
+    const res = await fetch(`${API}/item-category?limit=1000`);
+    if (!res.ok) throw new Error(`HTTP ${res.status} while loading item categories`);
+    const data = await res.json();
+    const cats = Array.isArray(data?.results) ? data.results : [];
+
+    const byName = {};
+    const catList = [];
+
+    const maxConcurrency = 10;
+    let cursor = 0;
+    async function worker() {
+        while (true) {
+            const i = cursor++;
+            if (i >= cats.length) return;
+            const c = cats[i];
+            const catName = String(c?.name || '').toLowerCase();
+            const url = c?.url;
+            if (!catName || !url) continue;
+
+            try {
+                const detailRes = await fetch(url);
+                if (!detailRes.ok) continue;
+                const detail = await detailRes.json();
+                catList.push({ name: catName, display: formatItemCategoryDisplayName(catName) });
+
+                const items = Array.isArray(detail?.items) ? detail.items : [];
+                for (const it of items) {
+                    const n = String(it?.name || '').toLowerCase();
+                    if (n) byName[n] = catName;
+                }
+            } catch {
+                // ignore one-off category errors
+            }
+        }
+    }
+
+    const workers = [];
+    for (let i = 0; i < Math.min(maxConcurrency, cats.length); i++) workers.push(worker());
+    await Promise.all(workers);
+
+    catList.sort((a, b) => String(a.display).localeCompare(String(b.display)));
+    return { byName, categories: catList };
+}
+
+function populateItemsCategorySelect() {
+    const sel = document.getElementById('itemsCategory');
+    if (!sel) return;
+
+    const current = String(sel.value || 'all').toLowerCase();
+    const options = ['<option value="all">All Categories</option>'].concat(
+        allItemCategories.map(c => `<option value="${c.name}">${c.display}</option>`)
+    );
+    sel.innerHTML = options.join('');
+    sel.value = current;
+}
+
+function renderItems() {
+    const grid = document.getElementById('itemsGrid');
+    const list = document.getElementById('itemsList');
+    const empty = document.getElementById('itemsEmpty');
+    if (!grid || !list) return;
+
+    const q = getItemsSearchQuery();
+    const cat = getItemsCategoryFilter();
+
+    const items = (q || (cat && cat !== 'all'))
+        ? allItems.filter(it => {
+            const name = String(it.name || '').toLowerCase();
+            if (q && !name.includes(q)) return false;
+            if (cat && cat !== 'all') return String(it.category || '').toLowerCase() === cat;
+            return true;
+        })
+        : allItems;
+
+    if (empty) empty.style.display = items.length ? 'none' : '';
+
+    // Render grid
+    if (currentItemsView === 'grid') {
+        grid.innerHTML = items.map(it => {
+            const name = formatItemDisplayName(it.name);
+            const id = it.id != null ? it.id : '';
+            const sprite = getItemSpriteUrl(it.name);
+            const catName = it.categoryDisplay || '';
+            return `
+                <div class="card item-card" data-action="open-item" data-item-name="${String(it.name || '').toLowerCase()}">
+                    <div class="item-card-top">
+                        <div class="item-name">${name}</div>
+                        <div class="item-id">${id ? ('#' + id) : ''}</div>
+                    </div>
+                    <div style="display:flex;justify-content:center;align-items:center;min-height:56px;">
+                        <img class="item-icon" data-item-sprite-name="${String(it.name || '').toLowerCase()}" src="${sprite}" alt="${name}" onerror="handleItemImgError(this)">
+                    </div>
+                    ${catName ? `<div class="item-id">${catName}</div>` : ''}
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Render list
+    if (currentItemsView === 'list') {
+        const header = `
+            <div class="items-list-header">
+                <div class="muted">&nbsp;</div>
+                <div>Name</div>
+                <div>Category</div>
+                <div>Description</div>
+            </div>
+        `;
+
+        const rows = items.map(it => {
+            const rawName = String(it.name || '').toLowerCase();
+            const name = formatItemDisplayName(rawName);
+            const sprite = getItemSpriteUrl(rawName);
+            const category = it.categoryDisplay || '—';
+
+            const cached = itemDetailsCache[rawName];
+            const desc = cached ? (getEnglishItemDescription(cached) || '—') : 'Loading...';
+            const descClass = cached ? 'item-desc' : 'item-desc loading';
+
+            return `
+                <div class="item-row" data-action="open-item" data-item-name="${rawName}">
+                    <img class="item-icon" data-item-sprite-name="${rawName}" src="${sprite}" alt="" onerror="handleItemImgError(this)">
+                    <div class="item-name">${name}</div>
+                    <div class="item-category">${category}</div>
+                    <div class="${descClass}">${desc}</div>
+                </div>
+            `;
+        }).join('');
+
+        list.innerHTML = header + rows;
+
+        // Lazy-load descriptions for visible rows.
+        const obs = ensureItemDescObserver();
+        list.querySelectorAll('.item-row').forEach(row => {
+            const n = row.dataset.itemName;
+            if (!n) return;
+            const cached = itemDetailsCache[String(n).toLowerCase()];
+            const hasDesc = cached && getEnglishItemDescription(cached);
+            if (!hasDesc) obs.observe(row);
+        });
+    }
+}
+
+// ========== Item Detail Page ==========
+function getItemParam() {
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get('item') || params.get('name') || params.get('id') || '';
+    return String(raw || '').trim();
+}
+
+function getEnglishEffect(itemDetail) {
+    const effect = Array.isArray(itemDetail?.effect_entries)
+        ? itemDetail.effect_entries.find(e => e?.language?.name === 'en')
+        : null;
+    const shortEffect = String(effect?.short_effect || '').trim();
+    if (shortEffect) return shortEffect.replace(/\s+/g, ' ');
+    const longEffect = String(effect?.effect || '').trim();
+    if (longEffect) return longEffect.replace(/\s+/g, ' ');
+    return '';
+}
+
+function getLanguageDisplayName(code) {
+    const c = String(code || '').trim();
+    if (!c) return '';
+
+    // PokeAPI language codes are mostly ISO-ish with some special cases.
+    const map = {
+        en: 'English',
+        fr: 'French',
+        de: 'German',
+        es: 'Spanish',
+        it: 'Italian',
+        ja: 'Japanese',
+        'ja-Hrkt': 'Japanese',
+        ko: 'Korean',
+        'zh-Hans': 'Chinese (Simplified)',
+        'zh-Hant': 'Chinese (Traditional)',
+        ru: 'Russian',
+        pt: 'Portuguese',
+        nl: 'Dutch',
+    };
+
+    return map[c] || c;
+}
+
+function languageSortRank(code) {
+    const c = String(code || '').trim();
+    const rank = {
+        en: 0,
+        ja: 1,
+        'ja-Hrkt': 2,
+        de: 3,
+        fr: 4,
+        it: 5,
+        es: 6,
+        ko: 7,
+        'zh-Hans': 8,
+        'zh-Hant': 9,
+    };
+    return (c in rank) ? rank[c] : 50;
+}
+
+function getEnglishName(itemDetail) {
+    const entry = Array.isArray(itemDetail?.names)
+        ? itemDetail.names.find(n => n?.language?.name === 'en')
+        : null;
+    return String(entry?.name || itemDetail?.name || '').trim();
+}
+
+function normalizeItemKey(raw) {
+    const s = String(raw || '').trim();
+    if (!s) return '';
+    // If it's a number, PokeAPI supports /item/{id}
+    if (/^\d+$/.test(s)) return s;
+    return s.toLowerCase();
+}
+
+function buildItemFlavorByVersionGroup(itemDetail) {
+    const entries = Array.isArray(itemDetail?.flavor_text_entries) ? itemDetail.flavor_text_entries : [];
+    const map = {};
+    for (const e of entries) {
+        if (e?.language?.name !== 'en') continue;
+        const vg = e?.version_group?.name;
+        const text = String(e?.text || '').trim();
+        if (!vg || !text) continue;
+        const cleaned = text.replace(/[\f\n\r\t]+/g, ' ').replace(/\s+/g, ' ');
+        // Keep first occurrence for a version_group.
+        if (!map[vg]) map[vg] = cleaned;
+    }
+
+    // Sort by generation if mapping exists.
+    const vgs = Object.keys(map);
+    vgs.sort((a, b) => {
+        const ga = VERSION_GROUP_TO_GEN[a] || 0;
+        const gb = VERSION_GROUP_TO_GEN[b] || 0;
+        if (ga !== gb) return ga - gb;
+        return getVersionGroupDisplayName(a).localeCompare(getVersionGroupDisplayName(b));
+    });
+
+    return vgs.map(vg => ({
+        vg,
+        game: getVersionGroupDisplayName(vg),
+        text: map[vg]
+    }));
+}
+
+function renderItemDetail(itemDetail) {
+    const root = document.getElementById('itemDetail');
+    if (!root) return;
+
+    const enName = getEnglishName(itemDetail);
+    const displayName = enName ? enName : formatItemDisplayName(itemDetail?.name);
+    const category = String(itemDetail?.category?.name || '').toLowerCase();
+    const categoryLabel = category ? formatItemCategoryDisplayName(category) : '';
+    const sprite = itemDetail?.sprites?.default || getItemSpriteUrl(itemDetail?.name);
+    const effect = getEnglishEffect(itemDetail);
+    const flavor = buildItemFlavorByVersionGroup(itemDetail);
+
+    const cost = Number(itemDetail?.cost) || 0;
+    const flingPower = (itemDetail?.fling_power != null) ? Number(itemDetail.fling_power) : null;
+    const flingEffect = String(itemDetail?.fling_effect?.name || '').toLowerCase();
+    const attributes = Array.isArray(itemDetail?.attributes) ? itemDetail.attributes : [];
+    const attrNames = attributes
+        .map(a => String(a?.name || '').toLowerCase())
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b));
+
+    const heldBy = Array.isArray(itemDetail?.held_by_pokemon) ? itemDetail.held_by_pokemon : [];
+    const heldByNames = heldBy
+        .map(h => String(h?.pokemon?.name || '').toLowerCase())
+        .filter(Boolean)
+        .slice(0, 10);
+
+    // Other languages
+    const names = Array.isArray(itemDetail?.names) ? itemDetail.names : [];
+    const seenLangLabels = new Set();
+    const langRows = names
+        .filter(n => n?.language?.name && n?.name)
+        .map(n => {
+            const code = String(n.language.name || '').trim();
+            return {
+                langCode: code,
+                langLabel: getLanguageDisplayName(code),
+                name: String(n.name || '').trim()
+            };
+        })
+        .sort((a, b) => {
+            const ra = languageSortRank(a.langCode);
+            const rb = languageSortRank(b.langCode);
+            if (ra !== rb) return ra - rb;
+            return a.langLabel.localeCompare(b.langLabel);
+        })
+        .filter(r => {
+            // Collapse duplicates like ja + ja-Hrkt when they represent the same label.
+            if (!r.langLabel) return false;
+            if (seenLangLabels.has(r.langLabel)) return false;
+            seenLangLabels.add(r.langLabel);
+            return true;
+        });
+
+    document.title = `${displayName} (item) - Pokémon Database`;
+
+    const heroPills = [
+        ...(categoryLabel ? [categoryLabel] : []),
+        ...(cost ? [`Cost: ${cost}`] : []),
+        ...(flingPower != null ? [`Fling: ${flingPower}`] : []),
+    ];
+
+    root.innerHTML = `
+        <div class="item-hero">
+            <img class="item-hero-icon" data-item-sprite-name="${escapeHtml(String(itemDetail?.name || '').toLowerCase())}" src="${sprite}" alt="" onerror="handleItemImgError(this)">
+            <div>
+                <div class="item-hero-title">${escapeHtml(displayName)} <span class="item-muted">(item)</span></div>
+                <div class="item-hero-sub">
+                    ${heroPills.map(p => `<span class="item-pill">${escapeHtml(p)}</span>`).join('')}
+                </div>
+            </div>
+        </div>
+
+        <div class="item-detail-grid">
+            <div class="item-card">
+                <h3>Effects</h3>
+                <div class="item-desc-text">${effect ? escapeHtml(effect) : '<span class="item-muted">No effect text available from PokeAPI.</span>'}</div>
+
+                <div style="height:14px"></div>
+                <h3>Game descriptions</h3>
+                ${flavor.length ? `
+                    <table class="item-desc-table">
+                        <tbody>
+                            ${flavor.map(row => `
+                                <tr>
+                                    <td class="item-desc-game">${escapeHtml(row.game)}</td>
+                                    <td class="item-desc-text">${escapeHtml(row.text)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                ` : `<div class="item-muted">No game descriptions available from PokeAPI.</div>`}
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:18px;">
+                <div class="item-card">
+                    <h3>Quick facts</h3>
+                    <div class="facts">
+                        <div class="fact-row">
+                            <div class="fact-key">Category</div>
+                            <div class="fact-val">${categoryLabel ? escapeHtml(categoryLabel) : '<span class="item-muted">—</span>'}</div>
+                        </div>
+                        <div class="fact-row">
+                            <div class="fact-key">Cost</div>
+                            <div class="fact-val">${cost ? escapeHtml(String(cost)) : '<span class="item-muted">—</span>'}</div>
+                        </div>
+                        <div class="fact-row">
+                            <div class="fact-key">Fling</div>
+                            <div class="fact-val">
+                                ${flingPower != null ? escapeHtml(String(flingPower)) : '<span class="item-muted">—</span>'}
+                                ${flingEffect ? `<span class="fact-sub">${escapeHtml(formatItemDisplayName(flingEffect))}</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="fact-row">
+                            <div class="fact-key">Attributes</div>
+                            <div class="fact-val">
+                                ${attrNames.length ? `<div class="tag-row">${attrNames.map(a => `<span class="tag">${escapeHtml(formatItemDisplayName(a))}</span>`).join('')}</div>` : '<span class="item-muted">—</span>'}
+                            </div>
+                        </div>
+                        <div class="fact-row">
+                            <div class="fact-key">Held by</div>
+                            <div class="fact-val">
+                                ${heldBy.length ? `<div class="fact-sub">${escapeHtml(String(heldBy.length))} Pokémon</div>` : '<span class="item-muted">—</span>'}
+                                ${heldByNames.length ? `<div class="tag-row">${heldByNames.map(n => `<span class="tag">${escapeHtml(formatItemDisplayName(n))}</span>`).join('')}</div>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="item-card">
+                    <h3>Other languages</h3>
+                    ${langRows.length ? `
+                        <table class="lang-table">
+                            <tbody>
+                                ${langRows.map(r => `
+                                    <tr>
+                                        <td class="lang-name">${escapeHtml(r.langLabel)}</td>
+                                        <td class="lang-value">${escapeHtml(r.name)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    ` : `<div class="item-muted">No translations available.</div>`}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+async function initItemDetailPage() {
+    const root = document.getElementById('itemDetail');
+    if (!root) return;
+
+    const param = getItemParam();
+    if (!param) {
+        root.innerHTML = '<div class="empty">No item specified.</div>';
+        return;
+    }
+
+    const key = normalizeItemKey(param);
+    root.innerHTML = '<div class="empty">Loading item...</div>';
+
+    try {
+        const res = await fetch(`${API}/item/${encodeURIComponent(key)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status} while loading item`);
+        const detail = await res.json();
+        renderItemDetail(detail);
+    } catch (e) {
+        console.error(e);
+        root.innerHTML = `<div class="empty">Failed to load item: ${escapeHtml(String(e?.message || e))}</div>`;
+    }
+}
+
+// Simple HTML escaper for detail rendering.
+function escapeHtml(s) {
+    return String(s || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+async function initItemsPage() {
+    const grid = document.getElementById('itemsGrid');
+    const list = document.getElementById('itemsList');
+    if (!grid || !list) return;
+
+    // Restore view preference
+    try {
+        const saved = window.localStorage.getItem('itemsView');
+        if (saved) currentItemsView = (saved === 'list') ? 'list' : 'grid';
+    } catch {
+        // ignore
+    }
+    setItemsView(currentItemsView);
+
+    const input = document.getElementById('itemsSearch');
+    if (input && !input.__itemsSearchBound) {
+        input.__itemsSearchBound = true;
+        input.addEventListener('input', () => renderItems());
+    }
+
+    const catSel = document.getElementById('itemsCategory');
+    if (catSel && !catSel.__itemsCategoryBound) {
+        catSel.__itemsCategoryBound = true;
+        catSel.addEventListener('change', () => renderItems());
+    }
+
+    grid.innerHTML = '<div class="empty">Loading items...</div>';
+    list.innerHTML = '<div class="empty">Loading items...</div>';
+
+    try {
+        const [itemsRes, catMapRes] = await Promise.all([
+            fetch(`${API}/item?limit=5000`),
+            loadItemCategoryMap()
+        ]);
+
+        if (!itemsRes.ok) throw new Error(`HTTP ${itemsRes.status} while loading items`);
+        const data = await itemsRes.json();
+
+        itemCategoryByName = catMapRes.byName || {};
+        allItemCategories = Array.isArray(catMapRes.categories) ? catMapRes.categories : [];
+        populateItemsCategorySelect();
+
+        allItems = (data?.results || []).map(it => {
+            const name = String(it?.name || '').toLowerCase();
+            const category = itemCategoryByName[name] || '';
+            return {
+                name,
+                url: it?.url,
+                id: getIdFromApiUrl(it?.url),
+                category,
+                categoryDisplay: category ? formatItemCategoryDisplayName(category) : ''
+            };
+        }).filter(it => it.name);
+
+        // Stable sorting: by name, then id.
+        allItems.sort((a, b) => {
+            const an = String(a.name).localeCompare(String(b.name));
+            if (an !== 0) return an;
+            return (a.id || 0) - (b.id || 0);
+        });
+
+        renderItems();
+    } catch (e) {
+        console.error(e);
+        const msg = (e && e.message) ? e.message : 'Error loading items.';
+        grid.innerHTML = `<div class="empty">${msg}</div>`;
+        list.innerHTML = `<div class="empty">${msg}</div>`;
+    }
+}
+
 // ========== Abilities Page ==========
 let allAbilities = [];
 let currentSortColumn = 0;
@@ -508,6 +1218,12 @@ function getSpeciesIdFromUrl(url) {
     return m ? parseInt(m[1], 10) : null;
 }
 
+function isTotemFormApiName(name) {
+    const n = String(name || '').toLowerCase();
+    // PokeAPI uses names like "gumshoos-totem", "mimikyu-totem-disguised", etc.
+    return n.includes('-totem');
+}
+
 async function loadAbilityDetail() {
     const urlParams = new URLSearchParams(window.location.search);
     const abilityParam = urlParams.get('ability');
@@ -633,10 +1349,17 @@ async function loadAbilityDetail() {
         
         if (pokemonList.length > 0) {
             // Fetch Pokémon details
-            const pokemonPromises = pokemonList.slice(0, 100).map(async p => {
+            const pokemonPromises = pokemonList
+                .slice(0, 100)
+                // Don’t show Totem forms in ability listings
+                .filter(p => !isTotemFormApiName(p?.pokemon?.name))
+                .map(async p => {
                 try {
                     const pokeResponse = await fetch(p.pokemon.url);
                     const pokeData = await pokeResponse.json();
+
+                    // Safety net: also filter Totem forms based on fetched name
+                    if (isTotemFormApiName(pokeData?.name)) return null;
                     
                     // Check if this ability is hidden for this Pokémon
                     const abilityInfo = pokeData.abilities.find(a => a.ability.name === ability.name);

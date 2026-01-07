@@ -75,6 +75,9 @@ function setSidebarActiveFromLocation() {
     if (currentPath.endsWith('/locations.html') || currentPath.endsWith('/location-detail.html')) {
         if (activateByHref((u) => u.pathname.endsWith('/locations.html'))) return;
     }
+    if (currentPath.endsWith('/items.html') || currentPath.endsWith('/item-detail.html')) {
+        if (activateByHref((u) => u.pathname.endsWith('/items.html'))) return;
+    }
     if (currentPath.endsWith('/egg-group.html')) {
         const egg = sidebar.querySelector('.nav-item[data-action="toggle-egg-group-menu"]');
         if (egg) egg.classList.add('active');
@@ -140,6 +143,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (window.location.pathname.includes('locations.html')) {
         if (typeof initLocationsGuidePage === 'function') initLocationsGuidePage();
+        return;
+    }
+    if (window.location.pathname.includes('items.html')) {
+        if (typeof initItemsPage === 'function') initItemsPage();
+        return;
+    }
+    if (window.location.pathname.includes('item-detail.html')) {
+        if (typeof initItemDetailPage === 'function') initItemDetailPage();
         return;
     }
 
@@ -772,6 +783,99 @@ function renderStatsForForm(form) {
     }).join('');
 }
 
+function renderOtherLanguagesSectionHtml(species) {
+    if (!species || !Array.isArray(species.names)) {
+        return '';
+    }
+
+    // Helper functions (copied from script.part4.js logic)
+    function getLanguageDisplayName(code) {
+        const c = String(code || '').trim();
+        if (!c) return '';
+        const map = {
+            en: 'English',
+            fr: 'French',
+            de: 'German',
+            es: 'Spanish',
+            it: 'Italian',
+            ja: 'Japanese',
+            'ja-Hrkt': 'Japanese',
+            ko: 'Korean',
+            'zh-Hans': 'Chinese (Simplified)',
+            'zh-Hant': 'Chinese (Traditional)',
+            ru: 'Russian',
+            pt: 'Portuguese',
+            nl: 'Dutch',
+        };
+        return map[c] || c;
+    }
+
+    function languageSortRank(code) {
+        const c = String(code || '').trim();
+        const rank = {
+            en: 0,
+            ja: 1,
+            'ja-Hrkt': 2,
+            de: 3,
+            fr: 4,
+            it: 5,
+            es: 6,
+            ko: 7,
+            'zh-Hans': 8,
+            'zh-Hant': 9,
+        };
+        return (c in rank) ? rank[c] : 50;
+    }
+
+    // Build language rows
+    const seenLangLabels = new Set();
+    const langRows = species.names
+        .filter(n => n?.language?.name && n?.name)
+        .map(n => {
+            const code = String(n.language.name || '').trim();
+            return {
+                langCode: code,
+                langLabel: getLanguageDisplayName(code),
+                name: String(n.name || '').trim()
+            };
+        })
+        .sort((a, b) => {
+            const ra = languageSortRank(a.langCode);
+            const rb = languageSortRank(b.langCode);
+            if (ra !== rb) return ra - rb;
+            return a.langLabel.localeCompare(b.langLabel);
+        })
+        .filter(r => {
+            // Collapse duplicates like ja + ja-Hrkt when they represent the same label
+            if (!r.langLabel) return false;
+            if (seenLangLabels.has(r.langLabel)) return false;
+            seenLangLabels.add(r.langLabel);
+            return true;
+        });
+
+    if (langRows.length === 0) {
+        return '';
+    }
+
+    const langsHtml = langRows.map(r => `
+        <div class="lang-row">
+            <div class="lang-label">${escapeHtml(r.langLabel.toUpperCase())}</div>
+            <div class="lang-value">${escapeHtml(r.name)}</div>
+        </div>
+    `).join('');
+
+    return `
+        <div class="detail-cards-row full">
+            <div class="detail-card">
+                <h3 class="card-section-title">Other languages</h3>
+                <div class="lang-rows-container">
+                    ${langsHtml}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
 function renderFormContent(p, species, evo, genus, localDexHtml, catchRate, baseExp, growthRate, baseFriendship, friendshipDesc, evYield, eggGroups, genderText, eggCycles, steps, abilities, heightM, weightKg, flavorText, dexEntriesSectionHtml, statsHtml, defenseHtml, evoHtml, learnsetSectionHtml) {
     const formSlug = String(p?.name || '').toLowerCase();
     const isLetsGoStarter = /^(pikachu|eevee)-starter$/.test(formSlug);
@@ -819,6 +923,7 @@ function renderFormContent(p, species, evo, genus, localDexHtml, catchRate, base
 
     const artData = encodeURIComponent(JSON.stringify(uniqueArts));
     
+    
     return `
         <div class="detail-grid">
             <div class="detail-left">
@@ -837,91 +942,91 @@ function renderFormContent(p, species, evo, genus, localDexHtml, catchRate, base
             </div>
 
             <div class="detail-middle">
-                <h3 class="section-header" style="margin-top:0">Pokédex data</h3>
-                <table class="data-table">
-                    <tr>
-                        <th>National №</th>
-                        <td><strong>${String(species.id).padStart(4, '0')}</strong></td>
-                    </tr>
-                    <tr>
-                        <th>Local №</th>
-                        <td>${localDexHtml}</td>
-                    </tr>
-                    <tr>
-                        <th>Type</th>
-                        <td>
+                <div class="detail-card">
+                    <h3 class="card-section-title">Pokédex Data</h3>
+                    <div class="data-row">
+                        <div class="data-label">National №</div>
+                        <div class="data-value"><strong>${String(species.id).padStart(4, '0')}</strong></div>
+                    </div>
+                    <div class="data-row">
+                        <div class="data-label">Local №</div>
+                        <div class="data-value">${localDexHtml}</div>
+                    </div>
+                    <div class="data-row">
+                        <div class="data-label">Type</div>
+                        <div class="data-value">
                             <div class="type-badges">
                                 ${p.types.map(t => `<div class="type-badge" style="background: ${TYPE_COLORS[t.type.name]}">${formatName(t.type.name)}</div>`).join('')}
                             </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th>Species</th>
-                        <td>${genus}</td>
-                    </tr>
-                    <tr>
-                        <th>Height</th>
-                        <td>${heightM} m (${(heightM * 3.28084).toFixed(1)}′${Math.round(((heightM * 3.28084) % 1) * 12).toString().padStart(2, '0')}″)</td>
-                    </tr>
-                    <tr>
-                        <th>Weight</th>
-                        <td>${weightKg} kg (${(weightKg * 2.20462).toFixed(1)} lbs)</td>
-                    </tr>
-                    <tr>
-                        <th>Abilities</th>
-                        <td>${abilitiesCell}</td>
-                    </tr>
-                </table>
+                        </div>
+                    </div>
+                    <div class="data-row">
+                        <div class="data-label">Species</div>
+                        <div class="data-value">${genus}</div>
+                    </div>
+                    <div class="data-row">
+                        <div class="data-label">Height</div>
+                        <div class="data-value">${heightM} m (${(heightM * 3.28084).toFixed(1)}′${Math.round(((heightM * 3.28084) % 1) * 12).toString().padStart(2, '0')}″)</div>
+                    </div>
+                    <div class="data-row">
+                        <div class="data-label">Weight</div>
+                        <div class="data-value">${weightKg} kg (${(weightKg * 2.20462).toFixed(1)} lbs)</div>
+                    </div>
+                    <div class="data-row">
+                        <div class="data-label">Abilities</div>
+                        <div class="data-value">${abilitiesCell}</div>
+                    </div>
+                </div>
             </div>
 
             <div class="detail-right">
-                <h3 class="section-header" style="margin-top:0">Training</h3>
-                <table class="data-table">
-                    <tr>
-                        <th>EV yield</th>
-                        <td>${evYield}</td>
-                    </tr>
-                    <tr>
-                        <th>Catch rate</th>
-                        <td>${catchRate} <small>(with PokéBall, full HP)</small></td>
-                    </tr>
-                    <tr>
-                        <th>Base Friendship</th>
-                        <td>${baseFriendship} <small>${friendshipDesc}</small></td>
-                    </tr>
-                    <tr>
-                        <th>Base Exp.</th>
-                        <td>${baseExp}</td>
-                    </tr>
-                    <tr>
-                        <th>Growth Rate</th>
-                        <td>${growthRate}</td>
-                    </tr>
-                </table>
+                <div class="detail-card">
+                    <h3 class="card-section-title">Training</h3>
+                    <div class="data-row">
+                        <div class="data-label">EV Yield</div>
+                        <div class="data-value">${evYield}</div>
+                    </div>
+                    <div class="data-row">
+                        <div class="data-label">Catch Rate</div>
+                        <div class="data-value">${catchRate} <small>(with PokéBall, full HP)</small></div>
+                    </div>
+                    <div class="data-row">
+                        <div class="data-label">Base Friendship</div>
+                        <div class="data-value">${baseFriendship} <small>${friendshipDesc}</small></div>
+                    </div>
+                    <div class="data-row">
+                        <div class="data-label">Base Exp.</div>
+                        <div class="data-value">${baseExp}</div>
+                    </div>
+                    <div class="data-row">
+                        <div class="data-label">Growth Rate</div>
+                        <div class="data-value">${growthRate}</div>
+                    </div>
+                </div>
 
-                <h3 class="section-header">Breeding</h3>
-                <table class="data-table">
-                    <tr>
-                        <th>Egg Groups</th>
-                        <td>${eggGroupsCell}</td>
-                    </tr>
-                    <tr>
-                        <th>Gender</th>
-                        <td>${genderText}</td>
-                    </tr>
-                    <tr>
-                        <th>Egg cycles</th>
-                        <td>${eggCycles} <small>(${steps} steps)</small></td>
-                    </tr>
-                </table>
+                <div class="detail-card">
+                    <h3 class="card-section-title">Breeding</h3>
+                    <div class="data-row">
+                        <div class="data-label">Egg Groups</div>
+                        <div class="data-value">${eggGroupsCell}</div>
+                    </div>
+                    <div class="data-row">
+                        <div class="data-label">Gender</div>
+                        <div class="data-value">${genderText}</div>
+                    </div>
+                    <div class="data-row">
+                        <div class="data-label">Egg Cycles</div>
+                        <div class="data-value">${eggCycles} <small>(${steps} steps)</small></div>
+                    </div>
+                </div>
             </div>
         </div>
 
         ${dexEntriesSectionHtml}
 
-        <div class="detail-grid" style="grid-template-columns: 1.2fr 0.8fr;">
-            <div>
-                <h3 class="section-header">Base stats</h3>
+        <div class="detail-cards-row full">
+            <div class="detail-card">
+                <h3 class="card-section-title">Base Stats</h3>
                 <table class="stats-table">
                     ${statsHtml}
                     <tr>
@@ -936,21 +1041,28 @@ function renderFormContent(p, species, evo, genus, localDexHtml, catchRate, base
                     The ranges shown on the right are for a level 100 Pokémon. Maximum values are based on a beneficial nature, 252 EVs, 31 IVs; minimum values are based on a hindering nature, 0 EVs, 0 IVs.
                 </div>
             </div>
-            <div>
-                <h3 class="section-header">Type defenses</h3>
+        </div>
+
+        <div class="detail-cards-row full">
+            <div class="detail-card">
+                <h3 class="card-section-title">Type Defenses</h3>
                 <div style="font-size:13px; color:#f5f7ff; margin-bottom:10px;">The effectiveness of each type on <i>${p.name}</i>.</div>
                 ${defenseHtml}
             </div>
         </div>
 
-        <div class="full-width-section">
-            <h3 class="section-header">Evolution chart</h3>
-            <div class="evolution-container">
-                ${evoHtml}
+        <div class="detail-cards-row full">
+            <div class="detail-card">
+                <h3 class="card-section-title">Evolution Chart</h3>
+                <div class="evolution-container">
+                    ${evoHtml}
+                </div>
             </div>
         </div>
 
         ${learnsetSectionHtml}
+
+        ${renderOtherLanguagesSectionHtml(species)}
 
         ${renderWhereToFindSectionPlaceholderHtml(p)}
     `;
@@ -1208,6 +1320,8 @@ function renderEvolutionChain(chain) {
         // Sandshrew / Sandslash
         'sandshrew:base:sandslash': '(Level 22)',
         'sandshrew:alola:sandslash': '(Use Ice Stone)',
+        // Meltan / Melmetal (Pokémon GO special evolution)
+        'meltan:base:melmetal': '(Pokémon GO only — 400 Meltan Candies)',
     };
 
     function detectRegionalTag(pokemonName) {
@@ -1620,6 +1734,20 @@ function renderEvolutionChain(chain) {
     return new Promise(async (resolve) => {
         const paths = [];
         collectPaths(chain, [chain], [], paths);
+
+        // Special case: Meltan -> Melmetal (PokeAPI omits this evolution entirely).
+        const rootSpeciesName = String(chain?.species?.name || '').toLowerCase();
+        if (rootSpeciesName === 'meltan' && paths.length === 1 && paths[0].stages.length === 1) {
+            // Manually inject Melmetal as the next stage.
+            const meltmetalNode = {
+                species: { name: 'melmetal', url: 'https://pokeapi.co/api/v2/pokemon-species/809/' },
+                evolves_to: [],
+                is_baby: false,
+                evolution_details: []
+            };
+            paths[0].stages.push(meltmetalNode);
+            paths[0].steps.push('(Pokémon GO only — 400 Meltan Candies)');
+        }
 
         if (paths.length === 0) {
             resolve('<div style="color: #8b92a5;">No evolution data available</div>');

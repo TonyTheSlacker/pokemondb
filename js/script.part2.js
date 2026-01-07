@@ -255,10 +255,14 @@ function renderLearnsetSectionHtml(pokemonData, learnsetKey) {
   const pokemonDisplay = formatPokemonDisplayNameFromData(pokemonData);
     if (!gens.length) {
         return `
-      <div class="full-width-section learnset-section" data-learnset-key="${learnsetKey}" data-pokemon-display="${escapeHtmlAttr(pokemonDisplay)}">
-        <h3 class="section-header">Moves learned by ${pokemonDisplay}</h3>
-                <div class="learnset-empty">No move learnset data available.</div>
-            </div>
+      <div class="detail-cards-row full learnset-section" data-learnset-key="${learnsetKey}" data-pokemon-display="${escapeHtmlAttr(pokemonDisplay)}">
+        <div>
+          <h3 class="section-header">Moves learned by ${pokemonDisplay}</h3>
+          <div class="detail-card">
+            <div class="learnset-empty">No move learnset data available.</div>
+          </div>
+        </div>
+      </div>
         `;
     }
 
@@ -270,26 +274,28 @@ function renderLearnsetSectionHtml(pokemonData, learnsetKey) {
     }).join('');
 
     return `
-      <div class="full-width-section learnset-section" data-learnset-key="${learnsetKey}" data-active-gen="${activeGen}" data-pokemon-display="${escapeHtmlAttr(pokemonDisplay)}">
-        <h3 class="section-header">Moves learned by ${pokemonDisplay}</h3>
-            <div class="learnset-genbar">
-                <div class="learnset-genlabel">In other generations</div>
-                <div class="learnset-gens">${genButtons}</div>
-            </div>
-            <div class="learnset-gametabs" role="tablist"></div>
-            <div class="learnset-grid">
-                <div class="learnset-col" data-method="level-up">
-                    <div class="learnset-col-title">Moves learnt by level up</div>
-                    <div class="learnset-col-desc"></div>
-                    <div class="learnset-table-wrap"></div>
-                </div>
-                <div class="learnset-col" data-method="machine">
-                    <div class="learnset-col-title">Moves learnt by TM</div>
-                    <div class="learnset-col-desc"></div>
-                    <div class="learnset-table-wrap"></div>
-                </div>
-            </div>
+      <div class="detail-cards-row full learnset-section" data-learnset-key="${learnsetKey}" data-active-gen="${activeGen}" data-pokemon-display="${escapeHtmlAttr(pokemonDisplay)}">
+        <div>
+          <h3 class="section-header">Moves learned by ${pokemonDisplay}</h3>
+          <div class="learnset-genbar">
+              <div class="learnset-genlabel">In other generations</div>
+              <div class="learnset-gens">${genButtons}</div>
+          </div>
+          <div class="learnset-gametabs" role="tablist"></div>
+          <div class="learnset-grid">
+              <div class="learnset-col" data-method="level-up">
+                  <div class="learnset-col-title">Moves learnt by level up</div>
+                  <div class="learnset-col-desc"></div>
+                  <div class="learnset-table-wrap"></div>
+              </div>
+              <div class="learnset-col" data-method="machine">
+                  <div class="learnset-col-title">Moves learnt by TM</div>
+                  <div class="learnset-col-desc"></div>
+                  <div class="learnset-table-wrap"></div>
+              </div>
+          </div>
         </div>
+      </div>
     `;
 }
 

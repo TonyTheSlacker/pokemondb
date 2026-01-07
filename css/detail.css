@@ -61,9 +61,15 @@
 .detail-grid {
   display: grid;
   grid-template-columns: 350px 1fr 1fr;
-  gap: 40px;
-  margin-bottom: 40px;
+  gap: 20px;
+  margin-bottom: 30px;
   align-items: start;
+}
+
+.detail-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .main-image-container {
@@ -131,20 +137,32 @@ button.nav-link {
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
-  margin-bottom: 30px;
+  margin-bottom: 0;
 }
 
 .stats-table th,
 .stats-table td {
   padding: 8px 0;
-  border-bottom: 1px solid #1e2337;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .stats-table th {
   text-align: left;
-  color: #8b92a5;
-  font-weight: normal;
+  color: #6bb3ff;
+  font-weight: 700;
   width: 100px;
+  font-size: 0.9rem;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.stats-table tr:last-child td,
+.stats-table tr:last-child th {
+  border-bottom: none;
+}
+
+.stats-table tr:hover {
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .stats-table .stat-val {
@@ -152,6 +170,7 @@ button.nav-link {
   width: 50px;
   text-align: right;
   padding-right: 20px;
+  color: #d1d5db;
 }
 
 .stats-table .stat-bar-cell {
@@ -162,7 +181,8 @@ button.nav-link {
 .stats-table .stat-minmax {
   width: 80px;
   text-align: right;
-  color: #f5f7ff;
+  color: #d1d5db;
+  font-weight: 500;
 }
 
 .stat-bar {
@@ -311,7 +331,10 @@ button.nav-link {
 
 .dex-panels {
   margin-top: 12px;
-  border-top: 1px solid #1e2337;
+  background: rgba(26, 32, 44, 0.5);
+  border: 1px solid rgba(59, 213, 255, 0.1);
+  border-radius: 8px;
+  padding: 20px;
 }
 
 .dex-panel {
@@ -324,22 +347,38 @@ button.nav-link {
 
 .dex-entry-row {
   display: grid;
-  grid-template-columns: 160px 1fr;
-  gap: 20px;
-  padding: 14px 0;
-  border-bottom: 1px solid #1e2337;
+  grid-template-columns: 140px 1fr;
+  gap: 1rem;
+  padding: 0.75rem 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  align-items: flex-start;
+}
+
+.dex-entry-row:last-child {
+  border-bottom: none;
+}
+
+.dex-entry-row:nth-child(even) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.dex-entry-row:hover {
+  background: rgba(74, 158, 255, 0.05);
 }
 
 .dex-entry-game {
-  color: #8b92a5;
+  color: #6bb3ff;
   font-weight: 700;
-  text-align: right;
-  padding-right: 10px;
+  text-align: left;
+  font-size: 0.9rem;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
 }
 
 .dex-entry-text {
-  color: #f5f7ff;
+  color: #d1d5db;
   line-height: 1.6;
+  font-weight: 500;
 }
 
 .dex-empty {
@@ -350,32 +389,53 @@ button.nav-link {
 
 /* Where to find (PokemonDB-like) */
 .wherefind-body {
-  margin-top: 12px;
-  border-top: 1px solid #1e2337;
+  margin-top: 0;
+  border-top: none;
+  background: rgba(26, 32, 44, 0.5);
+  border: 1px solid rgba(59, 213, 255, 0.1);
+  border-radius: 8px;
+  padding: 20px;
 }
 
 .wherefind-row {
   display: grid;
-  grid-template-columns: 180px 1fr;
-  gap: 20px;
-  padding: 12px 0;
-  border-bottom: 1px solid #1e2337;
+  grid-template-columns: 140px 1fr;
+  gap: 1rem;
+  padding: 0.75rem 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  align-items: flex-start;
+}
+
+.wherefind-row:last-child {
+  border-bottom: none;
+}
+
+.wherefind-row:nth-child(even) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.wherefind-row:hover {
+  background: rgba(74, 158, 255, 0.05);
 }
 
 .wherefind-games {
-  text-align: right;
-  padding-right: 10px;
+  text-align: left;
+  padding-right: 0;
 }
 
 .wherefind-game {
-  color: #8b92a5;
+  color: #6bb3ff;
   font-weight: 700;
   line-height: 1.5;
+  font-size: 0.9rem;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
 }
 
 .wherefind-note {
-  color: #f5f7ff;
+  color: #d1d5db;
   line-height: 1.6;
+  font-weight: 500;
 }
 
 .wherefind-link {
@@ -505,54 +565,77 @@ button.nav-link {
 .learnset-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  gap: 16px;
+}
+
+@media (min-width: 1600px) {
+  .learnset-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+@media (max-width: 1100px) {
+  .learnset-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.learnset-col {
+  background: rgba(26, 32, 44, 0.5);
+  border: 1px solid rgba(59, 213, 255, 0.1);
+  border-radius: 8px;
+  padding: 14px 16px;
 }
 
 .learnset-col-title {
-  font-size: 24px;
-  font-weight: 800;
+  font-size: 15px;
+  font-weight: 700;
   color: #f5f7ff;
   margin-bottom: 8px;
 }
 
 .learnset-col-desc {
   color: #8b92a5;
-  font-size: 14px;
-  margin-bottom: 14px;
+  font-size: 13px;
+  margin-bottom: 10px;
 }
 
 .learnset-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
-  background: #151928;
-  border-radius: 8px;
-  overflow: hidden;
+  background: transparent;
+  border-radius: 0;
+  overflow: visible;
 }
 
 .learnset-table thead th {
-  background: rgba(255, 255, 255, 0.03);
-  color: #f5f7ff;
+  background: transparent;
+  color: #6bb3ff;
   font-weight: 700;
   text-align: left;
-  padding: 12px 12px;
+  padding: 6px 8px 8px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   white-space: nowrap;
+  font-size: 0.85rem;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
 }
 
 .learnset-table td {
-  padding: 10px 12px;
+  padding: 7px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  color: #f5f7ff;
+  color: #d1d5db;
   vertical-align: middle;
-}
-
-.learnset-table tr:last-child td {
-  border-bottom: none;
+  font-weight: 500;
 }
 
 .learnset-table tr:hover {
   background: rgba(255, 255, 255, 0.02);
+}
+
+.learnset-table tr:last-child td {
+  border-bottom: none;
 }
 
 .learnset-lv,
@@ -570,12 +653,6 @@ button.nav-link {
   color: #8b92a5;
   font-size: 14px;
   padding: 10px 0;
-}
-
-@media (max-width: 1100px) {
-  .learnset-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 .detail-header-row {
@@ -616,7 +693,7 @@ button.nav-link {
 .evolution-container {
   display: block;
   overflow-x: auto;
-  padding: 10px 0;
+  padding: 0;
 }
 
 /* PokemonDB-like evolution chart */
@@ -1152,4 +1229,169 @@ button.nav-link {
     }
 }
 
+/* Other Languages Section */
+.lang-row {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  align-items: center;
+  transition: background 0.2s ease;
+}
 
+.lang-row:last-child {
+  border-bottom: none;
+}
+
+.lang-row:nth-child(even) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.lang-row:hover {
+  background: rgba(74, 158, 255, 0.05);
+}
+
+.lang-label {
+  color: #6bb3ff;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.3px;
+}
+
+.lang-value {
+  color: #d1d5db;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/* Multi-column layout for language rows to save space */
+.lang-rows-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0;
+}
+
+@media (max-width: 900px) {
+  .lang-rows-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+.detail-card {
+  background: rgba(26, 32, 44, 0.5);
+  border: 1px solid rgba(59, 213, 255, 0.1);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.detail-cards-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.detail-cards-row.full {
+  grid-template-columns: 1fr;
+}
+
+.detail-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.section-header {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 30px 0 15px 0;
+  color: #f5f7ff;
+}
+
+.card-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #f5f7ff;
+  margin-bottom: 10px;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0;
+  font-size: 14px;
+}
+
+.data-table th {
+  text-align: left;
+  color: #6bb3ff;
+  padding: 8px 0 12px 0;
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.data-table td {
+  color: #d1d5db;
+  padding: 10px 0;
+  font-weight: 500;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.data-table small {
+  color: #8b92a5;
+  font-size: 12px;
+}
+
+.data-row {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  align-items: center;
+}
+
+.data-row:last-child {
+  border-bottom: none;
+}
+
+.data-row:nth-child(even) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.data-row:hover {
+  background: rgba(74, 158, 255, 0.05);
+}
+
+.data-label {
+  color: #6bb3ff;
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+}
+
+.data-value {
+  color: #d1d5db;
+  font-size: 0.95rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}

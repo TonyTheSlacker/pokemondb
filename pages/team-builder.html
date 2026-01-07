@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Team Builder - Pokémon Database</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .team-section {
+      background: rgba(26, 32, 44, 0.3);
+      border: 1px solid rgba(59, 213, 255, 0.1);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 30px;
+    }
+
+    .team-heading {
+      font-size: 20px;
+      font-weight: 700;
+      color: #f5f7ff;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .team-slots {
+      display: grid;
+      grid-template-columns: repeat(3, 160px);
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .team-slot {
+      background: rgba(26, 32, 44, 0.5);
+      border: 2px solid rgba(59, 213, 255, 0.15);
+      border-radius: 12px;
+      padding: 16px;
+      width: 160px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .team-slot:hover {
+      border-color: rgba(59, 213, 255, 0.4);
+      transform: translateY(-2px);
+    }
+
+    .team-slot.empty {
+      border-style: dashed;
+      cursor: pointer;
+    }
+
+    .team-slot.empty:hover {
+      background: rgba(26, 32, 44, 0.7);
+    }
+
+    .pokemon-sprite {
+      width: 120px;
+      height: 120px;
+      object-fit: contain;
+      margin-bottom: 8px;
+    }
+
+    .placeholder-icon {
+      width: 120px;
+      height: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+      color: rgba(59, 213, 255, 0.3);
+      margin-bottom: 8px;
+    }
+
+    .pokemon-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #f5f7ff;
+      margin-bottom: 6px;
+      text-align: center;
+    }
+
+    .pokemon-types {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 10px;
+    }
+
+    .type-badge {
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 9px;
+      font-weight: 700;
+      color: #fff;
+      text-transform: uppercase;
+    }
+
+    .remove-btn {
+      background: rgba(255, 89, 89, 0.2);
+      color: #ff5959;
+      border: 1px solid rgba(255, 89, 89, 0.3);
+      padding: 4px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      transition: all 0.2s;
+    }
+
+    .remove-btn:hover {
+      background: rgba(255, 89, 89, 0.3);
+      border-color: #ff5959;
+    }
+
+    .team-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      padding-top: 16px;
+      border-top: 1px solid rgba(59, 213, 255, 0.1);
+    }
+
+    .btn {
+      padding: 8px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: #3bd5ff;
+      color: #0a0e1a;
+    }
+
+    .btn-primary:hover {
+      background: #2ab5df;
+    }
+
+    .btn-secondary {
+      background: rgba(59, 213, 255, 0.1);
+      color: #3bd5ff;
+      border: 1px solid rgba(59, 213, 255, 0.3);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(59, 213, 255, 0.2);
+    }
+
+    .dex-section {
+      background: rgba(26, 32, 44, 0.3);
+      border: 1px solid rgba(59, 213, 255, 0.1);
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    .search-box {
+      margin-bottom: 20px;
+    }
+
+    .search-box input {
+      width: 100%;
+      padding: 12px 16px;
+      background: rgba(21, 25, 40, 0.8);
+      border: 1px solid rgba(59, 213, 255, 0.2);
+      border-radius: 8px;
+      color: #f5f7ff;
+      font-size: 14px;
+    }
+
+    .search-box input:focus {
+      outline: none;
+      border-color: #3bd5ff;
+      background: rgba(21, 25, 40, 1);
+    }
+
+    .pokemon-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 12px;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+
+    .pokemon-card {
+      background: rgba(26, 32, 44, 0.6);
+      border: 1px solid rgba(59, 213, 255, 0.15);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .pokemon-card:hover {
+      border-color: rgba(59, 213, 255, 0.5);
+      background: rgba(26, 32, 44, 0.8);
+      transform: translateY(-2px);
+    }
+
+    .pokemon-card.picked {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+
+    .pokemon-card img {
+      width: 80px;
+      height: 80px;
+      object-fit: contain;
+    }
+
+    .pokemon-card-name {
+      font-size: 11px;
+      color: #f5f7ff;
+      margin-top: 6px;
+      font-weight: 600;
+    }
+
+    .pokemon-card-number {
+      font-size: 9px;
+      color: #8b92a5;
+    }
+
+    .filter-section {
+      background: rgba(26, 32, 44, 0.3);
+      border: 1px solid rgba(59, 213, 255, 0.1);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 30px;
+    }
+
+    .filter-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      align-items: center;
+    }
+
+    .filter-item {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .filter-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #8b92a5;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .filter-select, .filter-input {
+      padding: 10px 12px;
+      background: rgba(21, 25, 40, 0.8);
+      border: 1px solid rgba(59, 213, 255, 0.2);
+      border-radius: 6px;
+      color: #f5f7ff;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .filter-select:focus, .filter-input:focus {
+      outline: none;
+      border-color: #3bd5ff;
+    }
+
+    .filter-dropdown {
+      position: relative;
+    }
+
+    .dropdown-toggle {
+      padding: 10px 12px;
+      background: rgba(21, 25, 40, 0.8);
+      border: 1px solid rgba(59, 213, 255, 0.2);
+      border-radius: 6px;
+      color: #f5f7ff;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.2s;
+    }
+
+    .dropdown-toggle:hover {
+      border-color: #3bd5ff;
+      background: rgba(21, 25, 40, 1);
+    }
+
+    .dropdown-toggle::after {
+      content: '▼';
+      font-size: 10px;
+      margin-left: 8px;
+    }
+
+    .dropdown-toggle.open::after {
+      content: '▲';
+    }
+
+    .checkbox-group {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      margin-top: 4px;
+      max-height: 250px;
+      overflow-y: auto;
+      background: rgba(21, 25, 40, 0.98);
+      border: 1px solid rgba(59, 213, 255, 0.3);
+      border-radius: 6px;
+      padding: 8px;
+      z-index: 1000;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    .checkbox-group.open {
+      display: block;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 4px;
+      cursor: pointer;
+      transition: background 0.2s;
+      border-radius: 4px;
+    }
+
+    .checkbox-item:hover {
+      background: rgba(59, 213, 255, 0.1);
+    }
+
+    .checkbox-item input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      accent-color: #3bd5ff;
+    }
+
+    .checkbox-item label {
+      font-size: 13px;
+      color: #f5f7ff;
+      cursor: pointer;
+      flex: 1;
+    }
+
+    .analysis-section {
+      background: rgba(26, 32, 44, 0.3);
+      border: 1px solid rgba(59, 213, 255, 0.1);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 30px;
+    }
+
+    .analysis-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+    }
+
+    .type-chart {
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .type-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .type-icon img {
+      width: 60%;
+      height: 60%;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
+      object-fit: contain;
+    }
+
+    .effectiveness-bars {
+      display: flex;
+      gap: 2px;
+      margin-top: 4px;
+    }
+
+    .bar {
+      width: 6px;
+      height: 16px;
+      background: rgba(255, 255, 255, 0.18);
+      border-radius: 2px;
+    }
+
+    .bar.filled {
+      background: #3bd5ff;
+    }
+
+    .bar.weak {
+      background: #ff5959;
+    }
+
+    .bar.resist {
+      background: #55ffa9;
+    }
+
+    .bar.immune {
+      background: #8b92a5;
+    }
+
+    .type-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      text-align: center;
+    }
+
+    .type-label {
+      font-size: 10px;
+      color: #c5cbff;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo-icon"></div>
+        <span>Pokémon Data</span>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-group">
+            <a href="../index.html" class="nav-item" data-action="toggle-pokedex-menu">Pokédex <span class="arrow">▼</span></a>
+            <div class="nav-sub-menu" id="pokedexSubMenu" style="display: none;">
+              <div class="sub-menu-group">
+                <div class="sub-menu-title">Pokédex with stats</div>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="all" data-dex-name="All Pokémon">All Pokémon</a>
+              </div>
+
+              <div class="sub-menu-group">
+                <div class="sub-menu-title">Native Pokédexes</div>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="paldea" data-dex-name="Scarlet & Violet">Scarlet & Violet</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="30" data-dex-name="Legends: Arceus">Legends: Arceus</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="5" data-dex-name="Brilliant Diamond & Shining Pearl">Brilliant Diamond & Shining Pearl</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="27" data-dex-name="Sword & Shield">Sword & Shield</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="26" data-dex-name="Let's Go Pikachu & Eevee">Let's Go Pikachu & Eevee</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="21" data-dex-name="Ultra Sun & Ultra Moon">Ultra Sun & Ultra Moon</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="16" data-dex-name="Sun & Moon">Sun & Moon</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="15" data-dex-name="Omega Ruby & Alpha Sapphire">Omega Ruby & Alpha Sapphire</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="12" data-dex-name="X & Y">X & Y</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="9" data-dex-name="Black 2 & White 2">Black 2 & White 2</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="8" data-dex-name="Black & White">Black & White</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="7" data-dex-name="HeartGold & SoulSilver">HeartGold & SoulSilver</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="6" data-dex-name="Platinum">Platinum</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="5" data-dex-name="Diamond & Pearl">Diamond & Pearl</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="2" data-dex-name="FireRed & LeafGreen">FireRed & LeafGreen</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="4" data-dex-name="Ruby, Sapphire & Emerald">Ruby, Sapphire & Emerald</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="3" data-dex-name="Gold, Silver & Crystal">Gold, Silver & Crystal</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="2" data-dex-name="Red, Blue & Yellow">Red, Blue & Yellow</a>
+              </div>
+            </div>
+          </div>
+
+          <a href="../index.html#moves" class="nav-item">Moves</a>
+          <a href="../index.html#type-chart" class="nav-item">Type chart</a>
+          <a href="abilities.html" class="nav-item">Abilities</a>
+
+          <div class="nav-group">
+            <a href="#" class="nav-item" data-action="toggle-egg-group-menu">Egg groups <span class="arrow">▼</span></a>
+            <div class="nav-sub-menu" id="eggGroupSubMenu" style="display: none;">
+              <a href="egg-group.html?group=indeterminate" class="sub-nav-item egg-group-link">Amorphous</a>
+              <a href="egg-group.html?group=bug" class="sub-nav-item egg-group-link">Bug</a>
+              <a href="egg-group.html?group=ditto" class="sub-nav-item egg-group-link">Ditto</a>
+              <a href="egg-group.html?group=dragon" class="sub-nav-item egg-group-link">Dragon</a>
+              <a href="egg-group.html?group=fairy" class="sub-nav-item egg-group-link">Fairy</a>
+              <a href="egg-group.html?group=flying" class="sub-nav-item egg-group-link">Flying</a>
+              <a href="egg-group.html?group=ground" class="sub-nav-item egg-group-link">Ground</a>
+              <a href="egg-group.html?group=humanshape" class="sub-nav-item egg-group-link">Human-Like</a>
+              <a href="egg-group.html?group=mineral" class="sub-nav-item egg-group-link">Mineral</a>
+              <a href="egg-group.html?group=monster" class="sub-nav-item egg-group-link">Monster</a>
+              <a href="egg-group.html?group=no-eggs" class="sub-nav-item egg-group-link">No Eggs</a>
+              <a href="egg-group.html?group=plant" class="sub-nav-item egg-group-link">Plant</a>
+              <a href="egg-group.html?group=water1" class="sub-nav-item egg-group-link">Water 1</a>
+              <a href="egg-group.html?group=water2" class="sub-nav-item egg-group-link">Water 2</a>
+              <a href="egg-group.html?group=water3" class="sub-nav-item egg-group-link">Water 3</a>
+            </div>
+          </div>
+
+          <a href="items.html" class="nav-item">Items</a>
+          <a href="locations.html" class="nav-item">Pokémon locations</a>
+          <a href="team-builder.html" class="nav-item active">Team builder</a>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="main-content">
+      <div class="container">
+        <header style="text-align: center; margin-bottom: 40px;">
+          <h1 style="font-size: 36px; font-weight: 700; margin-bottom: 10px;">Team Builder</h1>
+          <p style="color: #8b92a5; font-size: 16px;">Build your perfect Pokémon team</p>
+        </header>
+
+      <!-- Team Section -->
+      <section class="team-section">
+        <h2 class="team-heading">Your Team</h2>
+        <div class="team-slots" id="teamSlots"></div>
+        <div class="team-actions">
+          <button class="btn btn-secondary" onclick="clearTeam()">Clear Team</button>
+          <button class="btn btn-primary" onclick="saveTeam()">Save Team</button>
+        </div>
+      </section>
+
+      <!-- Team Analysis Section -->
+      <section class="analysis-section" id="analysisSection" style="display: none;">
+        <h2 class="team-heading">Team Analysis</h2>
+        <div class="analysis-grid">
+          <div>
+            <h3 style="font-size: 16px; color: #f5f7ff; margin-bottom: 10px;">Team Defense</h3>
+            <p style="font-size: 12px; color: #8b92a5; margin-bottom: 12px;">Shows weaknesses and resistances</p>
+            <div class="type-chart" id="defenseChart"></div>
+          </div>
+          <div>
+            <h3 style="font-size: 16px; color: #f5f7ff; margin-bottom: 10px;">Coverage</h3>
+            <p style="font-size: 12px; color: #8b92a5; margin-bottom: 12px;">Offensive type coverage</p>
+            <div class="type-chart" id="coverageChart"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Filter Section -->
+      <section class="filter-section">
+        <h2 class="team-heading">Filter Options</h2>
+        <div class="filter-grid">
+          <div class="filter-item">
+            <label class="filter-label">Type</label>
+            <div class="filter-dropdown">
+              <div class="dropdown-toggle" id="typeDropdownToggle">All Selected</div>
+              <div class="checkbox-group" id="typeCheckboxGroup">
+                <div class="checkbox-item"><input type="checkbox" id="type-select-all" value="all" checked><label for="type-select-all"><strong>Select All</strong></label></div>
+                <div class="checkbox-item"><input type="checkbox" id="type-normal" value="normal" class="type-checkbox" checked><label for="type-normal">Normal</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="type-fire" value="fire" class="type-checkbox" checked><label for="type-fire">Fire</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="type-water" value="water" class="type-checkbox" checked><label for="type-water">Water</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="type-grass" value="grass" class="type-checkbox" checked><label for="type-grass">Grass</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="type-electric" value="electric" class="type-checkbox" checked><label for="type-electric">Electric</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="type-ice" value="ice" class="type-checkbox" checked><label for="type-ice">Ice</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="type-fighting" value="fighting" class="type-checkbox" checked><label for="type-fighting">Fighting</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="type-poison" value="poison" class="type-checkbox" checked><label for="type-poison">Poison</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="type-ground" value="ground" class="type-checkbox" checked><label for="type-ground">Ground</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="type-flying" value="flying" class="type-checkbox" checked><label for="type-flying">Flying</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="type-psychic" value="psychic" class="type-checkbox" checked><label for="type-psychic">Psychic</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="type-bug" value="bug" class="type-checkbox" checked><label for="type-bug">Bug</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="type-rock" value="rock" class="type-checkbox" checked><label for="type-rock">Rock</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="type-ghost" value="ghost" class="type-checkbox" checked><label for="type-ghost">Ghost</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="type-dragon" value="dragon" class="type-checkbox" checked><label for="type-dragon">Dragon</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="type-dark" value="dark" class="type-checkbox" checked><label for="type-dark">Dark</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="type-steel" value="steel" class="type-checkbox" checked><label for="type-steel">Steel</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="type-fairy" value="fairy" class="type-checkbox" checked><label for="type-fairy">Fairy</label></div>
+              </div>
+            </div>
+          </div>
+          <div class="filter-item">
+            <label class="filter-label">Generation</label>
+            <div class="filter-dropdown">
+              <div class="dropdown-toggle" id="genDropdownToggle">All Selected</div>
+              <div class="checkbox-group" id="genCheckboxGroup">
+                <div class="checkbox-item"><input type="checkbox" id="gen-select-all" value="all" checked><label for="gen-select-all"><strong>Select All</strong></label></div>
+                <div class="checkbox-item"><input type="checkbox" id="gen-1" value="1" class="gen-checkbox" checked><label for="gen-1">Generation 1</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="gen-2" value="2" class="gen-checkbox" checked><label for="gen-2">Generation 2</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="gen-3" value="3" class="gen-checkbox" checked><label for="gen-3">Generation 3</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="gen-4" value="4" class="gen-checkbox" checked><label for="gen-4">Generation 4</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="gen-5" value="5" class="gen-checkbox" checked><label for="gen-5">Generation 5</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="gen-6" value="6" class="gen-checkbox" checked><label for="gen-6">Generation 6</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="gen-7" value="7" class="gen-checkbox" checked><label for="gen-7">Generation 7</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="gen-8" value="8" class="gen-checkbox" checked><label for="gen-8">Generation 8</label></div>
+                <div class="checkbox-item"><input type="checkbox" id="gen-9" value="9" class="gen-checkbox" checked><label for="gen-9">Generation 9</label></div>
+              </div>
+            </div>
+          </div>
+          <div class="filter-item">
+            <label class="filter-label">Forms</label>
+            <select class="filter-select" id="filterForms">
+              <option value="all">All Forms</option>
+              <option value="base">Base Forms Only</option>
+              <option value="mega">Mega Only</option>
+              <option value="gmax">Gigantamax Only</option>
+              <option value="regional">Regional Forms Only</option>
+            </select>
+          </div>
+          <div class="filter-item">
+            <label class="filter-label">Search</label>
+            <input type="text" class="filter-input" id="pokemonSearch" placeholder="Search by name or number...">
+          </div>
+        </div>
+      </section>
+
+      <!-- Pokédex Section -->
+      <section class="dex-section">
+        <h2 class="team-heading">Pokédex</h2>
+        <div class="pokemon-grid" id="pokemonGrid"></div>
+      </section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // Sidebar toggle functionality
+    document.addEventListener('DOMContentLoaded', function() {
+      const pokedexToggle = document.querySelector('[data-action="toggle-pokedex-menu"]');
+      const eggGroupToggle = document.querySelector('[data-action="toggle-egg-group-menu"]');
+      const pokedexSubMenu = document.getElementById('pokedexSubMenu');
+      const eggGroupSubMenu = document.getElementById('eggGroupSubMenu');
+
+      if (pokedexToggle && pokedexSubMenu) {
+        pokedexToggle.addEventListener('click', function(e) {
+          e.preventDefault();
+          pokedexSubMenu.style.display = pokedexSubMenu.style.display === 'none' ? 'block' : 'none';
+        });
+      }
+
+      if (eggGroupToggle && eggGroupSubMenu) {
+        eggGroupToggle.addEventListener('click', function(e) {
+          e.preventDefault();
+          eggGroupSubMenu.style.display = eggGroupSubMenu.style.display === 'none' ? 'block' : 'none';
+        });
+      }
+    });
+
+    // Team Builder Code
+    const TYPE_COLORS = {
+      normal: '#A8A878', fighting: '#C03028', flying: '#A890F0', poison: '#A040A0',
+      ground: '#E0C068', rock: '#B8A038', bug: '#A8B820', ghost: '#705898',
+      steel: '#B8B8D0', fire: '#F08030', water: '#6890F0', grass: '#78C850',
+      electric: '#F8D030', psychic: '#F85888', ice: '#98D8D8', dragon: '#7038F8',
+      dark: '#705848', fairy: '#EE99AC'
+    };
+
+    const TYPE_ORDER = ['normal', 'fire', 'water', 'grass', 'electric', 'ice', 'fighting', 'poison', 'ground', 'flying', 'psychic', 'bug', 'rock', 'ghost', 'dragon', 'dark', 'steel', 'fairy'];
+
+    const REGIONAL_PREFIXES = {
+      alola: 'Alolan',
+      galar: 'Galarian',
+      hisui: 'Hisuian',
+      paldea: 'Paldean'
+    };
+
+    const SMALL_WORDS = new Set(['of', 'the', 'a', 'an', 'and', 'in']);
+
+    const TYPE_EFFECTIVENESS = {
+      normal: { rock: 0.5, ghost: 0, steel: 0.5 },
+      fire: { fire: 0.5, water: 0.5, grass: 2, ice: 2, bug: 2, rock: 0.5, dragon: 0.5, steel: 2 },
+      water: { fire: 2, water: 0.5, grass: 0.5, ground: 2, rock: 2, dragon: 0.5 },
+      grass: { fire: 0.5, water: 2, grass: 0.5, poison: 0.5, ground: 2, flying: 0.5, bug: 0.5, rock: 2, dragon: 0.5, steel: 0.5 },
+      electric: { water: 2, electric: 0.5, grass: 0.5, ground: 0, flying: 2, dragon: 0.5 },
+      ice: { fire: 0.5, water: 0.5, ice: 0.5, grass: 2, ground: 2, flying: 2, dragon: 2, steel: 0.5 },
+      fighting: { normal: 2, ice: 2, poison: 0.5, flying: 0.5, psychic: 0.5, bug: 0.5, rock: 2, ghost: 0, dark: 2, steel: 2, fairy: 0.5 },
+      poison: { grass: 2, poison: 0.5, ground: 0.5, rock: 0.5, ghost: 0.5, steel: 0, fairy: 2 },
+      ground: { fire: 2, electric: 2, grass: 0.5, poison: 2, flying: 0, bug: 0.5, rock: 2, steel: 2 },
+      flying: { electric: 0.5, grass: 2, fighting: 2, bug: 2, rock: 0.5, steel: 0.5 },
+      psychic: { fighting: 2, poison: 2, psychic: 0.5, dark: 0, steel: 0.5 },
+      bug: { fire: 0.5, grass: 2, fighting: 0.5, poison: 0.5, flying: 0.5, psychic: 2, ghost: 0.5, dark: 2, steel: 0.5, fairy: 0.5 },
+      rock: { fire: 2, ice: 2, fighting: 0.5, ground: 0.5, flying: 2, bug: 2, steel: 0.5 },
+      ghost: { normal: 0, psychic: 2, ghost: 2, dark: 0.5 },
+      dragon: { dragon: 2, steel: 0.5, fairy: 0 },
+      dark: { fighting: 0.5, psychic: 2, ghost: 2, dark: 0.5, fairy: 0.5 },
+      steel: { fire: 0.5, water: 0.5, electric: 0.5, ice: 2, rock: 2, fairy: 2 },
+      fairy: { fire: 0.5, fighting: 2, poison: 0.5, dragon: 2, dark: 2, steel: 0.5 }
+    };
+
+    const REGIONAL_SUFFIXES = Object.keys(REGIONAL_PREFIXES);
+
+    function titleCaseWord(word, isFirst = false) {
+      if (!word) return '';
+      if (!isFirst && SMALL_WORDS.has(word)) return word;
+      if (word === 'x' || word === 'y' || word === 'z') return word.toUpperCase();
+      if (/^[0-9]+$/.test(word)) return word;
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    }
+
+    function formatBaseName(base) {
+      return base.split('-').map((segment, index) => titleCaseWord(segment, index === 0)).join('-');
+    }
+
+    function formatFormSegments(segments) {
+      return segments.map((segment, index) => titleCaseWord(segment, index === 0)).join(' ');
+    }
+
+    function formatName(name) {
+      const lower = name.toLowerCase();
+
+      if (lower.endsWith('-mega-x')) {
+        return `Mega ${formatBaseName(lower.slice(0, -7))} X`;
+      }
+      if (lower.endsWith('-mega-y')) {
+        return `Mega ${formatBaseName(lower.slice(0, -7))} Y`;
+      }
+      if (lower.endsWith('-mega')) {
+        return `Mega ${formatBaseName(lower.slice(0, -5))}`;
+      }
+      if (lower.endsWith('-gmax')) {
+        return `G-Max ${formatBaseName(lower.slice(0, -5))}`;
+      }
+
+      for (const region of REGIONAL_SUFFIXES) {
+        const suffix = `-${region}`;
+        if (lower.endsWith(suffix)) {
+          return `${REGIONAL_PREFIXES[region]} ${formatBaseName(lower.slice(0, -suffix.length))}`;
+        }
+      }
+
+      const parts = lower.split('-');
+      return formatFormSegments(parts);
+    }
+
+    function getFormPriority(name, id, baseId) {
+      const lower = name.toLowerCase();
+      if (!lower.includes('-')) return 0;
+      if (lower.endsWith('-mega') || lower.endsWith('-mega-x') || lower.endsWith('-mega-y')) return 1;
+      if (lower.endsWith('-gmax')) return 2;
+      if (REGIONAL_SUFFIXES.some(region => lower.endsWith(`-${region}`))) return 3;
+      if (baseId !== id) return 4;
+      return 5;
+    }
+
+    function getDamageMultiplier(attackingType, defenderTypes) {
+      return defenderTypes.reduce((multiplier, defenderType) => {
+        const chart = TYPE_EFFECTIVENESS[attackingType] || {};
+        const modifier = chart[defenderType] ?? 1;
+        return multiplier * modifier;
+      }, 1);
+    }
+
+    const team = Array(6).fill(null);
+    let allPokemon = [];
+    let filteredPokemon = [];
+    const pokemonIndex = new Map();
+    const baseIdCache = new Map();
+    const MAX_BASE_ID = 1025;
+    const GEN_RANGES = {
+      '1': [1, 151], '2': [152, 251], '3': [252, 386], '4': [387, 493],
+      '5': [494, 649], '6': [650, 721], '7': [722, 809], '8': [810, 905], '9': [906, 1025]
+    };
+
+    async function loadAllPokemon() {
+      try {
+        const response = await fetch('https://pokeapi.co/api/v2/pokemon?limit=10000');
+        const data = await response.json();
+        const results = data.results
+          .filter(entry => !/^(koraidon|miraidon)-/.test(entry.name));
+
+        allPokemon = results.map(pokemon => {
+          const id = getPokemonId(pokemon.url);
+          pokemonIndex.set(pokemon.name, { id, url: pokemon.url });
+          return { ...pokemon, id };
+        }).map(pokemon => {
+          const baseId = getBasePokemonId(pokemon.name, pokemon.id);
+          return {
+            ...pokemon,
+            baseId,
+            displayName: formatName(pokemon.name),
+            formPriority: getFormPriority(pokemon.name, pokemon.id, baseId)
+          };
+        });
+
+        allPokemon.sort((a, b) => {
+          if (a.baseId !== b.baseId) return a.baseId - b.baseId;
+          if (a.formPriority !== b.formPriority) return a.formPriority - b.formPriority;
+          if (a.displayName !== b.displayName) return a.displayName.localeCompare(b.displayName);
+          return a.id - b.id;
+        });
+
+        filteredPokemon = allPokemon;
+        applyFilters();
+      } catch (error) {
+        console.error('Error loading Pokémon:', error);
+      }
+    }
+
+    function applyFilters() {
+      const searchQuery = document.getElementById('pokemonSearch')?.value.toLowerCase() || '';
+      const selectedTypes = Array.from(document.querySelectorAll('.type-checkbox:checked')).map(cb => cb.value);
+      const selectedGens = Array.from(document.querySelectorAll('.gen-checkbox:checked')).map(cb => cb.value);
+      const formFilter = document.getElementById('filterForms')?.value || 'all';
+
+      // Update dropdown toggle text
+      const totalTypes = document.querySelectorAll('.type-checkbox').length;
+      const totalGens = document.querySelectorAll('.gen-checkbox').length;
+      
+      const typeToggle = document.getElementById('typeDropdownToggle');
+      const genToggle = document.getElementById('genDropdownToggle');
+      
+      if (selectedTypes.length === totalTypes) {
+        typeToggle.textContent = 'All Selected';
+      } else if (selectedTypes.length === 0) {
+        typeToggle.textContent = 'None Selected';
+      } else {
+        typeToggle.textContent = `${selectedTypes.length} Selected`;
+      }
+      
+      if (selectedGens.length === totalGens) {
+        genToggle.textContent = 'All Selected';
+      } else if (selectedGens.length === 0) {
+        genToggle.textContent = 'None Selected';
+      } else {
+        genToggle.textContent = `${selectedGens.length} Selected`;
+      }
+
+      filteredPokemon = allPokemon.filter(pokemon => {
+        const { id, baseId } = pokemon;
+        const name = pokemon.name.toLowerCase();
+        const displayName = pokemon.displayName.toLowerCase();
+
+        // Search filter
+        if (searchQuery && !name.includes(searchQuery) && !displayName.includes(searchQuery) && !id.toString().includes(searchQuery) && !baseId.toString().includes(searchQuery)) {
+          return false;
+        }
+
+        // Generation filter - only apply if not all selected and at least one is selected
+        if (selectedGens.length > 0 && selectedGens.length < totalGens) {
+          let inSelectedGen = false;
+          for (const gen of selectedGens) {
+            const [min, max] = GEN_RANGES[gen];
+            if (baseId >= min && baseId <= max) {
+              inSelectedGen = true;
+              break;
+            }
+          }
+          if (!inSelectedGen) return false;
+        }
+
+        // Form filter
+        if (formFilter !== 'all') {
+          const isMega = name.includes('-mega');
+          const isGmax = name.includes('-gmax');
+          const isRegional = name.includes('-alola') || name.includes('-galar') || name.includes('-hisui') || name.includes('-paldea');
+          const hasForm = name.includes('-') && !isMega && !isGmax && !isRegional;
+
+          if (formFilter === 'base' && (isMega || isGmax || hasForm)) return false;
+          if (formFilter === 'mega' && !isMega) return false;
+          if (formFilter === 'gmax' && !isGmax) return false;
+          if (formFilter === 'regional' && !isRegional) return false;
+        }
+
+        return true;
+      });
+
+      renderPokemonGrid(filteredPokemon);
+    }
+
+    function formatTypeLabel(type) {
+      if (!type) return '';
+      return type.charAt(0).toUpperCase() + type.slice(1);
+    }
+
+    function getPokemonId(url) {
+      const parts = url.split('/').filter(Boolean);
+      return parseInt(parts[parts.length - 1], 10);
+    }
+
+    function getTypeIconSrc(type) {
+      return `https://raw.githubusercontent.com/duiker101/pokemon-type-svg-icons/master/icons/${type}.svg`;
+    }
+
+    function getBasePokemonId(name, id) {
+      if (id <= MAX_BASE_ID) return id;
+      if (baseIdCache.has(name)) return baseIdCache.get(name);
+
+      let candidate = name;
+      while (candidate.includes('-')) {
+        candidate = candidate.slice(0, candidate.lastIndexOf('-'));
+        const baseEntry = pokemonIndex.get(candidate);
+        if (baseEntry && baseEntry.id <= MAX_BASE_ID) {
+          baseIdCache.set(name, baseEntry.id);
+          return baseEntry.id;
+        }
+      }
+
+      baseIdCache.set(name, id);
+      return id;
+    }
+
+    function renderTeamSlots() {
+      const container = document.getElementById('teamSlots');
+      container.innerHTML = team.map((pokemon, index) => {
+        if (pokemon) {
+          const displayName = pokemon.displayName || formatName(pokemon.name);
+          return `
+            <div class="team-slot">
+              <img src="${pokemon.sprite}" alt="${pokemon.name}" class="pokemon-sprite">
+              <div class="pokemon-name">${displayName}</div>
+              <div class="pokemon-types">
+                ${pokemon.types.map(type => `
+                  <span class="type-badge" style="background: ${TYPE_COLORS[type]}">${formatTypeLabel(type)}</span>
+                `).join('')}
+              </div>
+              <button class="remove-btn" onclick="removePokemon(${index})">Remove</button>
+            </div>
+          `;
+        } else {
+          return `
+            <div class="team-slot empty" onclick="focusSearch()">
+              <div class="placeholder-icon">+</div>
+              <div style="color: #8b92a5; font-size: 12px;">Add Pokémon</div>
+            </div>
+          `;
+        }
+      }).join('');
+      updateTeamAnalysis();
+    }
+
+    function updateTeamAnalysis() {
+      const hasTeam = team.some(p => p !== null);
+      const analysisSection = document.getElementById('analysisSection');
+      analysisSection.style.display = hasTeam ? 'block' : 'none';
+
+      if (!hasTeam) return;
+
+      // Render defense chart
+      const defenseChart = document.getElementById('defenseChart');
+
+      defenseChart.innerHTML = TYPE_ORDER.map(type => {
+        const label = formatTypeLabel(type);
+        const iconSrc = getTypeIconSrc(type);
+        const bars = team.map(member => {
+          if (!member) {
+            return '<div class="bar"></div>';
+          }
+          const multiplier = getDamageMultiplier(type, member.types);
+          const barClass = multiplier === 0 ? 'immune' : multiplier > 1 ? 'weak' : multiplier < 1 ? 'resist' : '';
+          return `<div class="bar ${barClass}"></div>`;
+        }).join('');
+
+        return `
+          <div class="type-item">
+            <div class="type-icon" style="background: ${TYPE_COLORS[type] || '#555'}" title="${label}">
+              <img src="${iconSrc}" alt="${label} type icon" onerror="this.style.display='none';">
+            </div>
+            <div class="effectiveness-bars">${bars}</div>
+          </div>
+        `;
+      }).join('');
+
+      // Render coverage chart
+      const coverageChart = document.getElementById('coverageChart');
+      coverageChart.innerHTML = TYPE_ORDER.map(type => {
+        const label = formatTypeLabel(type);
+        const iconSrc = getTypeIconSrc(type);
+        const bars = team.map(member => {
+          if (!member) {
+            return '<div class="bar"></div>';
+          }
+          const hasStrongHit = member.types.some(attackingType => {
+            const chart = TYPE_EFFECTIVENESS[attackingType] || {};
+            return (chart[type] ?? 1) > 1;
+          });
+          return `<div class="bar ${hasStrongHit ? 'filled' : ''}"></div>`;
+        }).join('');
+
+        return `
+          <div class="type-item">
+            <div class="type-icon" style="background: ${TYPE_COLORS[type] || '#555'}" title="${label}">
+              <img src="${iconSrc}" alt="${label} type icon" onerror="this.style.display='none';">
+            </div>
+            <div class="effectiveness-bars">${bars}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderPokemonGrid(pokemonList) {
+      const container = document.getElementById('pokemonGrid');
+      container.innerHTML = pokemonList.map(pokemon => {
+        const id = pokemon.id;
+        const displayNumber = `#${String(pokemon.baseId).padStart(4, '0')}`;
+        const isPicked = team.some(p => p && p.name === pokemon.name);
+        return `
+          <div class="pokemon-card ${isPicked ? 'picked' : ''}" onclick="addPokemon('${pokemon.name}', ${id})">
+            <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png" 
+                 onerror="this.onerror=null; this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/0.png';" 
+                 alt="${pokemon.name}">
+            <div class="pokemon-card-number">${displayNumber}</div>
+            <div class="pokemon-card-name">${pokemon.displayName}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function addPokemon(name, id) {
+      if (team.filter(p => p).length >= 6) {
+        alert('Team is full! Remove a Pokémon first.');
+        return;
+      }
+
+      if (team.some(p => p && p.name === name)) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`https://pokeapi.co/api/v2/pokemon/${name}`);
+        const data = await response.json();
+        
+        const emptySlot = team.findIndex(p => p === null);
+        team[emptySlot] = {
+          id: data.id,
+          name: data.name,
+          displayName: formatName(data.name),
+          sprite: data.sprites.other?.['official-artwork']?.front_default || data.sprites.front_default,
+          types: data.types.map(t => t.type.name)
+        };
+
+        renderTeamSlots();
+        renderPokemonGrid(filteredPokemon);
+        saveToLocalStorage();
+      } catch (error) {
+        console.error('Error adding Pokémon:', error);
+      }
+    }
+
+    function removePokemon(index) {
+      team[index] = null;
+      renderTeamSlots();
+      renderPokemonGrid(filteredPokemon);
+      saveToLocalStorage();
+    }
+
+    function focusSearch() {
+      document.getElementById('pokemonSearch').focus();
+      document.getElementById('pokemonSearch').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function clearTeam() {
+      if (confirm('Are you sure you want to clear your team?')) {
+        team.fill(null);
+        renderTeamSlots();
+        renderPokemonGrid(filteredPokemon);
+        saveToLocalStorage();
+      }
+    }
+
+    function saveTeam() {
+      saveToLocalStorage();
+      alert('Team saved successfully!');
+    }
+
+    function saveToLocalStorage() {
+      localStorage.setItem('pokemonTeam', JSON.stringify(team));
+    }
+
+    function loadFromLocalStorage() {
+      const saved = localStorage.getItem('pokemonTeam');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        parsed.forEach((pokemon, index) => {
+          if (pokemon) {
+            team[index] = {
+              ...pokemon,
+              displayName: pokemon.displayName || formatName(pokemon.name)
+            };
+          } else {
+            team[index] = null;
+          }
+        });
+      }
+    }
+
+    // Filter event listeners
+    document.getElementById('pokemonSearch')?.addEventListener('input', applyFilters);
+    document.getElementById('filterForms')?.addEventListener('change', applyFilters);
+    
+    // Dropdown toggle functionality
+    document.getElementById('typeDropdownToggle')?.addEventListener('click', function() {
+      const dropdown = document.getElementById('typeCheckboxGroup');
+      const toggle = document.getElementById('typeDropdownToggle');
+      dropdown.classList.toggle('open');
+      toggle.classList.toggle('open');
+    });
+    
+    document.getElementById('genDropdownToggle')?.addEventListener('click', function() {
+      const dropdown = document.getElementById('genCheckboxGroup');
+      const toggle = document.getElementById('genDropdownToggle');
+      dropdown.classList.toggle('open');
+      toggle.classList.toggle('open');
+    });
+    
+    // Select All functionality for types
+    document.getElementById('type-select-all')?.addEventListener('change', function(e) {
+      const checkboxes = document.querySelectorAll('.type-checkbox');
+      checkboxes.forEach(cb => cb.checked = e.target.checked);
+      applyFilters();
+    });
+    
+    // Select All functionality for generations
+    document.getElementById('gen-select-all')?.addEventListener('change', function(e) {
+      const checkboxes = document.querySelectorAll('.gen-checkbox');
+      checkboxes.forEach(cb => cb.checked = e.target.checked);
+      applyFilters();
+    });
+    
+    // Add event listeners to all type checkboxes
+    document.querySelectorAll('.type-checkbox').forEach(cb => {
+      cb.addEventListener('change', function() {
+        const totalTypes = document.querySelectorAll('.type-checkbox').length;
+        const checkedTypes = document.querySelectorAll('.type-checkbox:checked').length;
+        document.getElementById('type-select-all').checked = (checkedTypes === totalTypes);
+        applyFilters();
+      });
+    });
+    
+    // Add event listeners to all generation checkboxes
+    document.querySelectorAll('.gen-checkbox').forEach(cb => {
+      cb.addEventListener('change', function() {
+        const totalGens = document.querySelectorAll('.gen-checkbox').length;
+        const checkedGens = document.querySelectorAll('.gen-checkbox:checked').length;
+        document.getElementById('gen-select-all').checked = (checkedGens === totalGens);
+        applyFilters();
+      });
+    });
+    
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.filter-dropdown')) {
+        document.querySelectorAll('.checkbox-group.open').forEach(dropdown => {
+          dropdown.classList.remove('open');
+        });
+        document.querySelectorAll('.dropdown-toggle.open').forEach(toggle => {
+          toggle.classList.remove('open');
+        });
+      }
+    });
+
+    // Initialize
+    loadFromLocalStorage();
+    renderTeamSlots();
+    loadAllPokemon();
+  </script>
+</body>
+</html>

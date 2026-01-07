@@ -603,10 +603,12 @@ function renderDexEntriesSectionHtml(species, allowedVersions, pokemonName) {
     }).join('');
 
     return `
-        <div class="full-width-section dex-entries-section">
-            <h3 class="section-header">Pokédex entries</h3>
-            <div class="dex-tabs" role="tablist">${tabs}</div>
-            <div class="dex-panels">${panels}</div>
+        <div class="detail-cards-row full">
+            <div>
+                <h3 class="section-header">Pokédex entries</h3>
+                <div class="dex-tabs" role="tablist">${tabs}</div>
+                <div class="dex-panels">${panels}</div>
+            </div>
         </div>
     `;
 }
@@ -688,6 +690,9 @@ function setupActionDelegation() {
             case 'open-move':
                 moveDetail(el.dataset.moveId);
                 return;
+            case 'open-item':
+                window.location.href = `${PAGES_PREFIX}item-detail.html?item=${encodeURIComponent(el.dataset.itemName || '')}`;
+                return;
             case 'sort-moves':
                 sortMoves(el.dataset.field);
                 return;
@@ -717,6 +722,9 @@ function setupActionDelegation() {
                 return;
             case 'artwork-next':
                 artworkNavigate(1, el);
+                return;
+            case 'set-items-view':
+                if (typeof setItemsView === 'function') setItemsView(el.dataset.view, el);
                 return;
             default:
                 return;
@@ -1260,10 +1268,12 @@ async function buildWhereToFindByVersion(pokemonId, pokemonSlug) {
 function renderWhereToFindSectionPlaceholderHtml(pokemon) {
     const displayName = formatName(pokemon?.name || '');
     return `
-        <div class="full-width-section wherefind-section" data-pokemon-id="${pokemon?.id}" data-pokemon-slug="${pokemon?.name}">
-            <h3 class="section-header">Where to find ${displayName}</h3>
-            <div class="wherefind-body">
-                <div class="learnset-empty">Loading location data...</div>
+        <div class="detail-cards-row full wherefind-section" data-pokemon-id="${pokemon?.id}" data-pokemon-slug="${pokemon?.name}">
+            <div>
+                <h3 class="section-header">Where to find ${displayName}</h3>
+                <div class="wherefind-body">
+                    <div class="learnset-empty">Loading location data...</div>
+                </div>
             </div>
         </div>
     `;
@@ -1312,7 +1322,8 @@ function renderWhereToFindRowsHtml(rows, byVersion, species, evoAncestors) {
     const introGen = getSpeciesIntroducedGen(species);
     const ancestors = Array.isArray(evoAncestors) ? evoAncestors : [];
 
-    const list = (Array.isArray(rows) ? rows : []).map(r => {
+    // Process all rows and compute their location content
+    const processedRows = (Array.isArray(rows) ? rows : []).map(r => {
         const genTooEarly = introGen && r.gen && r.gen < introGen;
 
         const isSwShBase = r.version === 'sword' || r.version === 'shield';
@@ -1370,14 +1381,45 @@ function renderWhereToFindRowsHtml(rows, byVersion, species, evoAncestors) {
             rightHtml = `<span class="details-muted">Not available in this game</span>`;
         }
 
-        const left = `<div class="wherefind-game">${r.label}</div>`;
-        return `
-            <div class="wherefind-row">
-                <div class="wherefind-games">${left}</div>
-                <div class="wherefind-note">${rightHtml}</div>
-            </div>
-        `;
-    }).join('');
+        return { ...r, rightHtml };
+    });
+
+    // Group rows: within the same generation group, merge rows with matching rightHtml
+    const outputRows = [];
+    let i = 0;
+    while (i < processedRows.length) {
+        const current = processedRows[i];
+        const group = [current];
+        
+        // Look ahead for rows in same gen with same rightHtml
+        let j = i + 1;
+        while (j < processedRows.length) {
+            const next = processedRows[j];
+            // Same gen and same content?
+            if (next.gen === current.gen && next.rightHtml === current.rightHtml) {
+                group.push(next);
+                j++;
+            } else {
+                break;
+            }
+        }
+        
+        // Combine labels from group
+        const labels = group.map(r => r.label).join(', ');
+        outputRows.push({
+            labels,
+            rightHtml: current.rightHtml
+        });
+        
+        i = j;
+    }
+
+    const list = outputRows.map(row => `
+        <div class="wherefind-row">
+            <div class="wherefind-games">${row.labels}</div>
+            <div class="wherefind-note">${row.rightHtml}</div>
+        </div>
+    `).join('');
 
     return list || `<div class="learnset-empty">No location data available.</div>`;
 }

@@ -1,11 +1,11 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Egg Groups - Pokémon Database</title>
+  <title>Item - Pokémon Database</title>
   <link rel="stylesheet" href="../css/style.css">
-  <link rel="stylesheet" href="../css/egg-group.css">
+  <link rel="stylesheet" href="../css/item-detail.css">
 </head>
 <body>
   <div class="layout">
@@ -17,33 +17,33 @@
       <nav class="sidebar-nav">
         <div class="nav-section">
           <div class="nav-group">
-            <a href="#" class="nav-item" data-action="toggle-pokedex-menu">Pokédex <span class="arrow">▼</span></a>
+            <a href="../index.html" class="nav-item" data-action="toggle-pokedex-menu">Pokédex <span class="arrow">▼</span></a>
             <div class="nav-sub-menu" id="pokedexSubMenu" style="display: none;">
               <div class="sub-menu-group">
                 <div class="sub-menu-title">Pokédex with stats</div>
                 <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="all" data-dex-name="All Pokémon">All Pokémon</a>
               </div>
-              
+
               <div class="sub-menu-group">
                 <div class="sub-menu-title">Native Pokédexes</div>
-                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="paldea" data-dex-name="Scarlet & Violet">Scarlet & Violet</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="paldea" data-dex-name="Scarlet &amp; Violet">Scarlet &amp; Violet</a>
                 <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="30" data-dex-name="Legends: Arceus">Legends: Arceus</a>
-                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="5" data-dex-name="Brilliant Diamond & Shining Pearl">Brilliant Diamond & Shining Pearl</a>
-                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="27" data-dex-name="Sword & Shield">Sword & Shield</a>
-                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="26" data-dex-name="Let's Go Pikachu & Eevee">Let's Go Pikachu & Eevee</a>
-                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="21" data-dex-name="Ultra Sun & Ultra Moon">Ultra Sun & Ultra Moon</a>
-                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="16" data-dex-name="Sun & Moon">Sun & Moon</a>
-                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="15" data-dex-name="Omega Ruby & Alpha Sapphire">Omega Ruby & Alpha Sapphire</a>
-                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="12" data-dex-name="X & Y">X & Y</a>
-                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="9" data-dex-name="Black 2 & White 2">Black 2 & White 2</a>
-                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="8" data-dex-name="Black & White">Black & White</a>
-                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="7" data-dex-name="HeartGold & SoulSilver">HeartGold & SoulSilver</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="5" data-dex-name="Brilliant Diamond &amp; Shining Pearl">Brilliant Diamond &amp; Shining Pearl</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="27" data-dex-name="Sword &amp; Shield">Sword &amp; Shield</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="26" data-dex-name="Let's Go Pikachu &amp; Eevee">Let's Go Pikachu &amp; Eevee</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="21" data-dex-name="Ultra Sun &amp; Ultra Moon">Ultra Sun &amp; Ultra Moon</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="16" data-dex-name="Sun &amp; Moon">Sun &amp; Moon</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="15" data-dex-name="Omega Ruby &amp; Alpha Sapphire">Omega Ruby &amp; Alpha Sapphire</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="12" data-dex-name="X &amp; Y">X &amp; Y</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="9" data-dex-name="Black 2 &amp; White 2">Black 2 &amp; White 2</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="8" data-dex-name="Black &amp; White">Black &amp; White</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="7" data-dex-name="HeartGold &amp; SoulSilver">HeartGold &amp; SoulSilver</a>
                 <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="6" data-dex-name="Platinum">Platinum</a>
-                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="5" data-dex-name="Diamond & Pearl">Diamond & Pearl</a>
-                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="2" data-dex-name="FireRed & LeafGreen">FireRed & LeafGreen</a>
-                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="4" data-dex-name="Ruby, Sapphire & Emerald">Ruby, Sapphire & Emerald</a>
-                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="3" data-dex-name="Gold, Silver & Crystal">Gold, Silver & Crystal</a>
-                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="2" data-dex-name="Red, Blue & Yellow">Red, Blue & Yellow</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="5" data-dex-name="Diamond &amp; Pearl">Diamond &amp; Pearl</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="2" data-dex-name="FireRed &amp; LeafGreen">FireRed &amp; LeafGreen</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="4" data-dex-name="Ruby, Sapphire &amp; Emerald">Ruby, Sapphire &amp; Emerald</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="3" data-dex-name="Gold, Silver &amp; Crystal">Gold, Silver &amp; Crystal</a>
+                <a href="#" class="sub-nav-item" data-action="navigate-pokedex" data-dex-id="2" data-dex-name="Red, Blue &amp; Yellow">Red, Blue &amp; Yellow</a>
               </div>
 
               <div class="sub-menu-group">
@@ -55,13 +55,14 @@
               </div>
             </div>
           </div>
+
           <a href="../index.html#moves" class="nav-item">Moves</a>
           <a href="../index.html#type-chart" class="nav-item">Type chart</a>
           <a href="abilities.html" class="nav-item">Abilities</a>
-          
+
           <div class="nav-group">
-            <a href="#" class="nav-item expanded" data-action="toggle-egg-group-menu">Egg groups <span class="arrow">▼</span></a>
-            <div class="nav-sub-menu" id="eggGroupSubMenu" style="display: block;">
+            <a href="#" class="nav-item" data-action="toggle-egg-group-menu">Egg groups <span class="arrow">▼</span></a>
+            <div class="nav-sub-menu" id="eggGroupSubMenu" style="display: none;">
               <a href="egg-group.html?group=indeterminate" class="sub-nav-item egg-group-link">Amorphous</a>
               <a href="egg-group.html?group=bug" class="sub-nav-item egg-group-link">Bug</a>
               <a href="egg-group.html?group=ditto" class="sub-nav-item egg-group-link">Ditto</a>
@@ -89,22 +90,8 @@
 
     <main class="main-content">
       <div class="container">
-        <div class="egg-group-layout" style="display: block;">
-            
-            <div class="egg-content">
-                <div id="eggGroupHeader">
-                    <h1 class="egg-title">Loading...</h1>
-                </div>
-                
-                <div id="eggGroupDescription" class="egg-description">
-                    <!-- Description will be populated here -->
-                </div>
-
-                <h2 class="section-title">The Pokémon</h2>
-                <div class="grid" id="eggPokemonGrid">
-                    <div class="loading">Loading Pokémon...</div>
-                </div>
-            </div>
+        <div id="itemDetail" class="item-detail">
+          <div class="empty">Loading item...</div>
         </div>
       </div>
     </main>
@@ -113,4 +100,3 @@
   <script src="../js/script.js"></script>
 </body>
 </html>
-
